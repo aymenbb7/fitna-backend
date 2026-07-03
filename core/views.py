@@ -26,11 +26,28 @@ class UploadMediaView(views.APIView):
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
-            upload_data = cloudinary.uploader.upload(
-                file_obj,
-                upload_preset="fitna_uploads"
-            )
-            return Response({"url": upload_data.get('secure_url')})
+            import requests
+            import os
+            cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
+            if not cloud_name:
+                return Response({"error": "Cloudinary not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+            url = f"https://api.cloudinary.com/v1_1/{cloud_name}/auto/upload"
+            data = {
+                "upload_preset": "fitna_uploads"
+            }
+            files = {
+                "file": (file_obj.name, file_obj.read(), file_obj.content_type)
+            }
+            
+            response = requests.post(url, data=data, files=files)
+            response_data = response.json()
+            
+            if response.status_code == 200:
+                return Response({"url": response_data.get("secure_url")})
+            else:
+                return Response({"error": response_data.get("error", {}).get("message", "Upload failed")}, status=status.HTTP_400_BAD_REQUEST)
+                
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

@@ -36,6 +36,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ('email', 'password', 'full_name', 'phone_number', 'age', 'module_slug')
 
+    def validate_age(self, value):
+        if value is not None and not (14 <= value <= 18):
+            raise serializers.ValidationError("Age must be between 14 and 18.")
+        return value
+
     def create(self, validated_data):
         module_slug = validated_data.pop('module_slug')
         password = validated_data.pop('password')

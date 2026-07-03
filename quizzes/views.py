@@ -63,8 +63,24 @@ class QuestionViewSet(viewsets.ModelViewSet):
         quiz = get_object_or_404(Quiz, pk=self.kwargs.get('quiz_pk'))
         serializer.save(quiz=quiz)
 
+class IsQuizParticipant(IsContentReaderOrAdmin):
+    def has_permission(self, request, view):
+        # We need to temporarily pretend it's a GET request to bypass the SAFE_METHODS check in the parent
+        # or we just reimplement the check specifically for quizzes.
+        user = request.user
+        if not user or not user.is_authenticated: return False
+        if user.role in ['SUPER_ADMIN', 'MODULE_ADMIN']: return True
+        if user.role == 'STUDENT':
+            if not user.is_approved: return False
+            slug = view.kwargs.get('slug')
+            module = get_object_or_404(Module, slug=slug)
+            if not user.enrollments.filter(module=module).exists(): return False
+            if not module.settings.show_quizzes: return False
+            return True
+        return False
+
 class StartQuizAttemptView(views.APIView):
-    permission_classes = (IsContentReaderOrAdmin,)
+    permission_classes = (IsQuizParticipant,)
 
     def post(self, request, slug, pk):
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug, is_active=True)
@@ -97,7 +113,7 @@ class StartQuizAttemptView(views.APIView):
         })
 
 class SubmitQuizAttemptView(views.APIView):
-    permission_classes = (IsContentReaderOrAdmin,)
+    permission_classes = (IsQuizParticipant,)
 
     def post(self, request, slug, pk):
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug)
@@ -214,11 +230,21 @@ class QuizResultsAdminView(views.APIView):
             correct_rate = (correct_answers / total_answers * 100) if total_answers > 0 else 0
             wrong_rate = (wrong_answers / total_answers * 100) if total_answers > 0 else 0
             
-            # Simplified most common wrong answer logic (can be complex for MULTI)
+            most_common_wrong = None
+            if wrong_answers > 0:
+                most_frequent_choice = StudentAnswer.objects.filter(
+                    question=q, attempt__is_completed=True, is_correct=False
+                ).values('selected_choices__text').annotate(
+                    count=Count('selected_choices')
+                ).order_by('-count').first()
+                if most_frequent_choice and most_frequent_choice['selected_choices__text']:
+                    most_common_wrong = most_frequent_choice['selected_choices__text']
+                    
             question_stats.append({
                 "question_text": q.text,
                 "correct_rate": correct_rate,
                 "wrong_rate": wrong_rate,
+                "most_common_wrong": most_common_wrong
             })
             
         avg_score = attempts.aggregate(Avg('score'))['score__avg'] or 0

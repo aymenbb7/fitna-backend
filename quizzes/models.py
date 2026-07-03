@@ -7,7 +7,7 @@ class Quiz(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     time_limit_minutes = models.IntegerField(default=0) # 0 = no limit
-    passing_score = models.IntegerField(default=60)
+    passing_score = models.IntegerField(default=70)
     is_active = models.BooleanField(default=False)
     show_results_immediately = models.BooleanField(default=True)
     max_attempts = models.IntegerField(default=1)

@@ -109,16 +109,19 @@ class RejectStudentView(views.APIView):
         module = enrollment.module
         
         enrollment.delete()
+        student_deleted = False
         if not Enrollment.objects.filter(student=student).exists():
             student.delete()
+            student_deleted = True
             
-        Notification.objects.create(
-            recipient=student,
-            title="Registration Rejected",
-            message=f"Your registration for {module.name} has been rejected.",
-            notification_type="STUDENT_REJECTED",
-            related_module=module
-        )
+        if not student_deleted:
+            Notification.objects.create(
+                recipient=student,
+                title="Registration Rejected",
+                message=f"Your registration for {module.name} has been rejected.",
+                notification_type="STUDENT_REJECTED",
+                related_module=module
+            )
             
         return Response({"message": "Student rejected and enrollment removed."})
 
