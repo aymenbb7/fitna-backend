@@ -14,10 +14,13 @@ class Command(BaseCommand):
         if User.objects.filter(email=email).exists():
             self.stdout.write(self.style.WARNING(f'Superadmin with email {email} already exists.'))
             u = User.objects.get(email=email)
-            if not u.username:
-                u.username = username
-                u.save()
-                self.stdout.write(self.style.SUCCESS(f'Updated username to {username} for existing superadmin.'))
+            u.username = username
+            u.set_password(password)
+            u.is_staff = True
+            u.is_superuser = True
+            u.is_active = True
+            u.save()
+            self.stdout.write(self.style.SUCCESS(f'Updated username and reset password for existing superadmin.'))
         else:
             User.objects.create_superuser(
                 username=username,
