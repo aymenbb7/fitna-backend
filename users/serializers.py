@@ -9,10 +9,12 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     enrolled_modules = serializers.SerializerMethodField()
     unread_notifications_count = serializers.SerializerMethodField()
+    total_spent = serializers.SerializerMethodField()
+    purchase_history = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'role', 'is_approved', 'profile_picture', 'phone_number', 'age', 'enrolled_modules', 'unread_notifications_count')
+        fields = ('id', 'email', 'full_name', 'role', 'is_approved', 'is_active', 'profile_picture', 'phone_number', 'age', 'enrolled_modules', 'unread_notifications_count', 'total_spent', 'purchase_history', 'last_login', 'date_joined')
 
     def get_enrolled_modules(self, obj):
         if obj.role != 'STUDENT':
@@ -27,6 +29,26 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_unread_notifications_count(self, obj):
         return Notification.objects.filter(recipient=obj, is_read=False).count()
+        
+    def get_total_spent(self, obj):
+        if obj.role != 'STUDENT':
+            return 0
+        from modules.models import Payment
+        from django.db.models import Sum
+        return Payment.objects.filter(student=obj, payment_status='SUCCESS').aggregate(Sum('amount'))['amount__sum'] or 0
+
+    def get_purchase_history(self, obj):
+        if obj.role != 'STUDENT':
+            return []
+        from modules.models import Payment
+        payments = Payment.objects.filter(student=obj).order_by('-paid_at')
+        return [{
+            "id": p.id,
+            "module": p.module.name,
+            "amount": p.amount,
+            "status": p.payment_status,
+            "date": p.paid_at
+        } for p in payments]
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

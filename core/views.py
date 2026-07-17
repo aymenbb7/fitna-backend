@@ -59,6 +59,7 @@ class SuperAdminStatsView(views.APIView):
         total_students = User.objects.filter(role='STUDENT').count()
         active_students = User.objects.filter(role='STUDENT', is_approved=True).count()
         pending_students = User.objects.filter(role='STUDENT', is_approved=False).count()
+        total_module_admins = User.objects.filter(role='MODULE_ADMIN').count()
         total_modules = Module.objects.count()
         total_enrollments = Enrollment.objects.count()
 
@@ -67,6 +68,7 @@ class SuperAdminStatsView(views.APIView):
             "total_students": total_students,
             "active_students": active_students,
             "pending_students": pending_students,
+            "total_module_admins": total_module_admins,
             "total_modules": total_modules,
             "total_enrollments": total_enrollments
         })

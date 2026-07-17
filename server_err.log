@@ -1,0 +1,13 @@
+Watching for file changes with StatReloader
+--- UNIFIED AUTH LOG ---
+1. authenticate() called
+2. DB used: C:\Users\Amatek\Desktop\Fitna\fitna-backend\db.sqlite3
+3. username received: 'superadmin'
+5. querying for email or username
+6. user found: superadmin | is_staff: True | is_active: True
+[16/Jul/2026 15:57:56] "GET /django-admin/login/ HTTP/1.1" 200 4088
+7. check_password('Admin1234'): True
+8. Login successful! Returning user.
+[16/Jul/2026 15:57:57] "POST /django-admin/login/ HTTP/1.1" 302 0
+[16/Jul/2026 15:57:57] "GET /django-admin/ HTTP/1.1" 200 6614
+C:\Users\Amatek\Desktop\Fitna\fitna-backend\users\backends.py changed, reloading.
