@@ -13,16 +13,14 @@ USE_X_FORWARDED_HOST = True
 
 # CORS - only allow specified origins in production
 CORS_ALLOW_ALL_ORIGINS = False
-_cors_origins = config('CORS_ALLOWED_ORIGINS', default='')
-CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
+CORS_ALLOW_CREDENTIALS = True
 
-# Hardcode the actual domains to fix CORS
-CORS_ALLOWED_ORIGINS.extend([
+CORS_ALLOWED_ORIGINS = [
     'https://minasat-fitna.vercel.app',
     'https://fitna-frontend.vercel.app',
     'http://localhost:5173',
-    'http://localhost:8000',
-])
+    'http://127.0.0.1:5173',
+]
 
 # CSRF trusted origins (should match CORS origins)
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS[:]
