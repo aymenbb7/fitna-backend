@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import SuperAdminStatsView, SuperAdminUsersView, SuperAdminAssignModuleAdminView, SuperAdminAddStudentModuleView, SuperAdminModulesView, DashboardStatsView
 from .revenue_views import RevenueStatsView, RevenueExportView
-from .notification_views import BroadcastNotificationView, NotificationHistoryView
+from .notification_views import BroadcastNotificationView, NotificationHistoryView, NotificationDeleteView
 
 urlpatterns = [
     path('stats/', SuperAdminStatsView.as_view(), name='superadmin_stats'),
@@ -18,4 +18,5 @@ urlpatterns = [
     # Notifications
     path('notifications/history/', NotificationHistoryView.as_view(), name='notifications_history'),
     path('notifications/broadcast/', BroadcastNotificationView.as_view(), name='notifications_broadcast'),
+    path('notifications/<int:pk>/delete/', NotificationDeleteView.as_view(), name='notification_delete'),
 ]

@@ -81,7 +81,10 @@ class NotificationHistoryView(views.APIView):
         if request.user.role not in ['SUPER_ADMIN', 'MODULE_ADMIN']:
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
             
-        sent_notifications = Notification.objects.filter(sender=request.user).order_by('-created_at')
+        if request.user.role == 'SUPER_ADMIN':
+            sent_notifications = Notification.objects.all().order_by('-created_at')
+        else:
+            sent_notifications = Notification.objects.filter(sender=request.user).order_by('-created_at')
         
         data = []
         for n in sent_notifications:
@@ -89,10 +92,29 @@ class NotificationHistoryView(views.APIView):
                 "id": n.id,
                 "title": n.title,
                 "message": n.message,
-                "recipient": n.recipient.email,
+                "recipient": n.recipient.email if n.recipient else "N/A",
                 "type": n.notification_type,
                 "is_read": n.is_read,
-                "created_at": n.created_at
+                "created_at": n.created_at,
+                "sender_name": n.sender.full_name if n.sender else "System"
             })
             
         return Response(data)
+
+class NotificationDeleteView(views.APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def delete(self, request, pk):
+        if request.user.role not in ['SUPER_ADMIN', 'MODULE_ADMIN']:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+        try:
+            if request.user.role == 'SUPER_ADMIN':
+                notification = Notification.objects.get(id=pk)
+            else:
+                notification = Notification.objects.get(id=pk, sender=request.user)
+                
+            notification.delete()
+            return Response({"message": "Notification deleted successfully"})
+        except Notification.DoesNotExist:
+            return Response({"error": "Notification not found or unauthorized to delete"}, status=status.HTTP_404_NOT_FOUND)
