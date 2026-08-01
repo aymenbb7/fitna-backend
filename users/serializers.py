@@ -73,6 +73,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"module_slug": "Module does not exist or is inactive."})
 
         user = User.objects.create_user(
+            username=validated_data.get('email'),
             password=password,
             **validated_data
         )
