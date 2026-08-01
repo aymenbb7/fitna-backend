@@ -76,3 +76,30 @@ class MeView(views.APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
+from users.models import Notification
+
+class MyNotificationsView(views.APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:50]
+        data = []
+        for n in notifications:
+            data.append({
+                "id": n.id,
+                "title": n.title,
+                "message": n.message,
+                "type": n.notification_type,
+                "is_read": n.is_read,
+                "created_at": n.created_at,
+                "sender_name": n.sender.full_name if n.sender else None
+            })
+        return Response(data)
+
+class MarkNotificationsReadView(views.APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+        return Response({"status": "success"})

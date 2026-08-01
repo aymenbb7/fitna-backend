@@ -51,32 +51,52 @@ class UploadMediaView(views.APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+from core.permissions import IsSuperAdmin, IsModuleAdmin
+
+class IsAdminUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'MODULE_ADMIN'])
+
 class SuperAdminStatsView(views.APIView):
-    permission_classes = (IsSuperAdmin,)
+    permission_classes = (IsAdminUser,)
 
     def get(self, request):
-        total_users = User.objects.count()
-        total_students = User.objects.filter(role='STUDENT').count()
-        active_students = User.objects.filter(role='STUDENT', is_approved=True).count()
-        pending_students = User.objects.filter(role='STUDENT', is_approved=False).count()
-        total_module_admins = User.objects.filter(role='MODULE_ADMIN').count()
-        total_modules = Module.objects.count()
-        total_enrollments = Enrollment.objects.count()
-
-        return Response({
-            "total_users": total_users,
-            "total_students": total_students,
-            "active_students": active_students,
-            "pending_students": pending_students,
-            "total_module_admins": total_module_admins,
-            "total_modules": total_modules,
-            "total_enrollments": total_enrollments
-        })
+        if request.user.role == 'SUPER_ADMIN':
+            return Response({
+                "total_users": User.objects.count(),
+                "total_students": User.objects.filter(role='STUDENT').count(),
+                "active_students": User.objects.filter(role='STUDENT', is_approved=True).count(),
+                "pending_students": User.objects.filter(role='STUDENT', is_approved=False).count(),
+                "total_module_admins": User.objects.filter(role='MODULE_ADMIN').count(),
+                "total_modules": Module.objects.count(),
+                "total_enrollments": Enrollment.objects.count()
+            })
+        else:
+            my_modules = Module.objects.filter(admin=request.user)
+            my_enrollments = Enrollment.objects.filter(module__in=my_modules)
+            my_students = User.objects.filter(role='STUDENT', enrollments__in=my_enrollments).distinct()
+            return Response({
+                "total_users": my_students.count(),
+                "total_students": my_students.count(),
+                "active_students": my_students.filter(is_approved=True).count(),
+                "pending_students": my_students.filter(is_approved=False).count(),
+                "total_modules": my_modules.count(),
+                "total_enrollments": my_enrollments.count()
+            })
 
 class SuperAdminUsersView(generics.ListAPIView):
-    permission_classes = (IsSuperAdmin,)
-    queryset = User.objects.all().order_by('-date_joined')
+    permission_classes = (IsAdminUser,)
     serializer_class = UserSerializer
+
+    def get_queryset(self):
+        if self.request.user.role == 'SUPER_ADMIN':
+            return User.objects.all().order_by('-date_joined')
+        else:
+            # Module Admin can only see their students
+            return User.objects.filter(
+                role='STUDENT',
+                enrollments__module__admin=self.request.user
+            ).distinct().order_by('-date_joined')
 
 class SuperAdminAssignModuleAdminView(views.APIView):
     permission_classes = (IsSuperAdmin,)
@@ -114,10 +134,14 @@ class SuperAdminAddStudentModuleView(views.APIView):
         return Response({"message": "Student is already enrolled in this module"}, status=status.HTTP_400_BAD_REQUEST)
 
 class SuperAdminModulesView(views.APIView):
-    permission_classes = (IsSuperAdmin,)
+    permission_classes = (IsAdminUser,)
     
     def get(self, request):
-        modules = Module.objects.all().annotate(student_count=Count('enrollments'))
+        if request.user.role == 'SUPER_ADMIN':
+            modules = Module.objects.all().annotate(student_count=Count('enrollments'))
+        else:
+            modules = Module.objects.filter(admin=request.user).annotate(student_count=Count('enrollments'))
+            
         data = []
         for m in modules:
             data.append({
@@ -127,4 +151,41 @@ class SuperAdminModulesView(views.APIView):
                 "student_count": m.student_count,
                 "is_active": m.is_active
             })
+        return Response(data)
+
+class DashboardStatsView(views.APIView):
+    permission_classes = (IsAdminUser,)
+
+    def get(self, request):
+        if request.user.role == 'SUPER_ADMIN':
+            modules = Module.objects.all().annotate(total_students=Count('enrollments'))
+        else:
+            modules = Module.objects.filter(admin=request.user).annotate(total_students=Count('enrollments'))
+            
+        from modules.models import Payment
+        from django.db.models import Sum
+        from django.utils import timezone
+        import datetime
+        
+        data = []
+        now = timezone.now()
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        for m in modules:
+            active_students = Enrollment.objects.filter(module=m, student__is_approved=True).count()
+            new_students_month = Enrollment.objects.filter(module=m, enrolled_at__gte=start_of_month).count()
+            
+            revenue = Payment.objects.filter(module=m, payment_status='SUCCESS').aggregate(Sum('amount'))['amount__sum'] or 0
+            
+            data.append({
+                "slug": m.slug,
+                "name": m.name,
+                "admin": m.admin.full_name if m.admin else "No Admin",
+                "total_students": m.total_students,
+                "active_students": active_students,
+                "new_students_month": new_students_month,
+                "revenue": revenue,
+                "completion_percent": 0 # simplified
+            })
+            
         return Response(data)
