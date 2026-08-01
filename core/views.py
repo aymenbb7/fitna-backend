@@ -1,5 +1,5 @@
 import cloudinary.uploader
-from rest_framework import views, status, generics
+from rest_framework import views, status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsSuperAdmin
