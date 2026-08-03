@@ -1,3 +1,4 @@
+from rest_framework import permissions
 import cloudinary.uploader
 from rest_framework import views, status, generics, permissions
 from rest_framework.response import Response
