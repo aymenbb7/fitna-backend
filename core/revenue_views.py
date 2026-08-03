@@ -82,7 +82,7 @@ class RevenueExportView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def get(self, request):
-        export_format = request.GET.get('format', 'csv')
+        export_format = request.GET.get('export_format', 'csv')
         payments = Payment.objects.all().order_by('-created_at')
 
         if export_format == 'csv':

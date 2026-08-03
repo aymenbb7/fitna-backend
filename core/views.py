@@ -137,6 +137,55 @@ class SuperAdminUsersView(generics.ListAPIView):
                 enrollments__module__admin=self.request.user
             ).distinct().order_by('-date_joined')
 
+class SuperAdminCreateStudentView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def post(self, request):
+        from django.contrib.auth import get_user_model
+        from modules.models import Module, Enrollment, Payment
+        
+        User = get_user_model()
+        data = request.data
+        
+        email = data.get('email')
+        if User.objects.filter(email=email).exists():
+            return Response({"error": "البريد الإلكتروني موجود مسبقاً"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            student = User.objects.create_user(
+                email=email,
+                password=data.get('password'),
+                full_name=data.get('full_name'),
+                phone_number=data.get('phone_number', ''),
+                age=data.get('age'),
+                role='STUDENT',
+                is_approved=True
+            )
+            
+            module_slugs = data.get('module_slugs', [])
+            for slug in module_slugs:
+                module = Module.objects.filter(slug=slug).first()
+                if module:
+                    Enrollment.objects.create(
+                        student=student,
+                        module=module,
+                        is_primary=False,
+                        enrolled_by=request.user
+                    )
+                    Payment.objects.create(
+                        student=student,
+                        module=module,
+                        amount=module.price,
+                        payment_method='CASH',
+                        payment_status='SUCCESS',
+                        created_by=request.user
+                    )
+                    
+            from users.serializers import UserSerializer
+            return Response(UserSerializer(student).data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 class SuperAdminAssignModuleAdminView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
@@ -279,7 +328,7 @@ class UsersExportView(views.APIView):
         from reportlab.pdfgen import canvas
         
         role = request.GET.get('role', 'STUDENT')
-        export_format = request.GET.get('format', 'csv')
+        export_format = request.GET.get('export_format', 'csv')
         
         if request.user.role == 'SUPER_ADMIN':
             users = User.objects.filter(role=role).order_by('-date_joined')
@@ -346,3 +395,96 @@ class UsersExportView(views.APIView):
             return response
 
         return Response({"error": "Invalid format"}, status=400)
+
+class SuperAdminUserUpdateView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def post(self, request, pk):
+        from django.contrib.auth import get_user_model
+        from modules.models import Module
+        User = get_user_model()
+        user = get_object_or_404(User, pk=pk)
+        
+        data = request.data
+        if 'full_name' in data:
+            user.full_name = data['full_name']
+        if 'email' in data:
+            user.email = data['email']
+        if 'phone_number' in data:
+            user.phone_number = data['phone_number']
+        if 'username' in data:
+            user.username = data['username']
+            
+        user.save()
+        
+        if user.role == 'MODULE_ADMIN' and 'module_slugs' in data:
+            # Unassign all modules
+            Module.objects.filter(admin=user).update(admin=None)
+            # Reassign new ones
+            for slug in data['module_slugs']:
+                module = Module.objects.filter(slug=slug).first()
+                if module:
+                    module.admin = user
+                    module.save()
+                    
+        return Response({"message": "User updated successfully"})
+
+class SuperAdminUserStatusView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def post(self, request, pk):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = get_object_or_404(User, pk=pk)
+        if 'is_active' in request.data:
+            user.is_active = request.data['is_active']
+            user.save()
+        return Response({"message": "Status updated successfully"})
+
+class SuperAdminUserResetPasswordView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def post(self, request, pk):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = get_object_or_404(User, pk=pk)
+        if 'password' in request.data:
+            user.set_password(request.data['password'])
+            user.save()
+        return Response({"message": "Password reset successfully"})
+
+class SuperAdminCreateModuleAdminView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def post(self, request):
+        from django.contrib.auth import get_user_model
+        from modules.models import Module
+        User = get_user_model()
+        data = request.data
+        email = data.get('email')
+        
+        if User.objects.filter(email=email).exists():
+            return Response({"error": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            admin_user = User.objects.create_user(
+                email=email,
+                password=data.get('password'),
+                full_name=data.get('full_name'),
+                phone_number=data.get('phone_number', ''),
+                username=data.get('username', ''),
+                role='MODULE_ADMIN',
+                is_approved=True
+            )
+            
+            module_slugs = data.get('module_slugs', [])
+            for slug in module_slugs:
+                module = Module.objects.filter(slug=slug).first()
+                if module:
+                    module.admin = admin_user
+                    module.save()
+                    
+            from users.serializers import UserSerializer
+            return Response(UserSerializer(admin_user).data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
