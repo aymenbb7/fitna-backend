@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *.class
@@ -10,3 +10,17 @@ media/
 static/
 .idea/
 .vscode/
+
+# Media Uploads
+media/
+videos/
+audio/
+photos/
+documents/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.mp3
+*.wav
+*.webm

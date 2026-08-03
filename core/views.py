@@ -58,6 +58,44 @@ class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'MODULE_ADMIN'])
 
+class SiteSettingsView(views.APIView):
+    permission_classes = (IsAdminUser,)
+    
+    def get(self, request):
+        from .models import SiteSettings
+        from .serializers import SiteSettingsSerializer
+        settings = SiteSettings.load()
+        serializer = SiteSettingsSerializer(settings)
+        return Response(serializer.data)
+        
+    def post(self, request):
+        if request.user.role != 'SUPER_ADMIN':
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+        action = request.data.get('action', 'update')
+        if action == 'test_email':
+            # Dummy test email success response since SMTP is not fully configured here
+            return Response({"message": "تم إرسال بريد الاختبار بنجاح (Simulation)"})
+            
+        from .models import SiteSettings
+        from .serializers import SiteSettingsSerializer
+        settings = SiteSettings.load()
+        serializer = SiteSettingsSerializer(settings, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+class PublicSiteSettingsView(views.APIView):
+    permission_classes = (permissions.AllowAny,)
+    
+    def get(self, request):
+        from .models import SiteSettings
+        from .serializers import SiteSettingsSerializer
+        settings = SiteSettings.load()
+        serializer = SiteSettingsSerializer(settings)
+        return Response(serializer.data)
+
 class SuperAdminStatsView(views.APIView):
     permission_classes = (IsAdminUser,)
 
@@ -158,35 +196,153 @@ class DashboardStatsView(views.APIView):
     permission_classes = (IsAdminUser,)
 
     def get(self, request):
-        if request.user.role == 'SUPER_ADMIN':
-            modules = Module.objects.all().annotate(total_students=Count('enrollments'))
-        else:
-            modules = Module.objects.filter(admin=request.user).annotate(total_students=Count('enrollments'))
-            
-        from modules.models import Payment
-        from django.db.models import Sum
+        from django.db.models import Sum, Count, Q
         from django.utils import timezone
         import datetime
         
-        data = []
         now = timezone.now()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
+        # Base queryset
+        if request.user.role == 'SUPER_ADMIN':
+            modules = Module.objects.all()
+        else:
+            modules = Module.objects.filter(admin=request.user)
+            
+        # Optimize with annotations instead of loop (Eliminates N+1)
+        modules = modules.annotate(
+            total_students_count=Count('enrollments', distinct=True),
+            active_students_count=Count('enrollments', filter=Q(enrollments__student__is_approved=True), distinct=True),
+            new_students_month_count=Count('enrollments', filter=Q(enrollments__enrolled_at__gte=start_of_month), distinct=True),
+            revenue_sum=Sum('payments__amount', filter=Q(payments__payment_status='SUCCESS'))
+        ).select_related('admin')
+
+        data = []
         for m in modules:
-            active_students = Enrollment.objects.filter(module=m, student__is_approved=True).count()
-            new_students_month = Enrollment.objects.filter(module=m, enrolled_at__gte=start_of_month).count()
-            
-            revenue = Payment.objects.filter(module=m, payment_status='SUCCESS').aggregate(Sum('amount'))['amount__sum'] or 0
-            
             data.append({
                 "slug": m.slug,
                 "name": m.name,
                 "admin": m.admin.full_name if m.admin else "No Admin",
-                "total_students": m.total_students,
-                "active_students": active_students,
-                "new_students_month": new_students_month,
-                "revenue": revenue,
+                "total_students": m.total_students_count,
+                "active_students": m.active_students_count,
+                "new_students_month": m.new_students_month_count,
+                "revenue": m.revenue_sum or 0,
                 "completion_percent": 0 # simplified
             })
             
         return Response(data)
+
+class StudentEnrollmentsView(views.APIView):
+    permission_classes = (IsAdminUser,)
+    
+    def get(self, request, pk):
+        enrollments = Enrollment.objects.filter(student_id=pk).select_related('module')
+        data = []
+        for e in enrollments:
+            data.append({
+                "id": e.id,
+                "module_name": e.module.name,
+                "enrolled_at": e.enrolled_at,
+                "progress": 0, # Placeholder
+                "status": "ACTIVE"
+            })
+        return Response(data)
+
+class StudentPaymentsView(views.APIView):
+    permission_classes = (IsAdminUser,)
+    
+    def get(self, request, pk):
+        from modules.models import Payment
+        payments = Payment.objects.filter(student_id=pk).select_related('module').order_by('-created_at')
+        data = []
+        for p in payments:
+            data.append({
+                "id": p.id,
+                "module_name": p.module.name,
+                "amount": p.amount,
+                "method": p.payment_method,
+                "status": p.payment_status,
+                "created_at": p.created_at,
+                "receipt_number": p.receipt_number,
+                "admin": "System"
+            })
+        return Response(data)
+
+class UsersExportView(views.APIView):
+    permission_classes = (IsAdminUser,)
+    
+    def get(self, request):
+        from django.http import HttpResponse
+        import csv
+        import openpyxl
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        
+        role = request.GET.get('role', 'STUDENT')
+        export_format = request.GET.get('format', 'csv')
+        
+        if request.user.role == 'SUPER_ADMIN':
+            users = User.objects.filter(role=role).order_by('-date_joined')
+        else:
+            if role == 'STUDENT':
+                users = User.objects.filter(role='STUDENT', enrollments__module__admin=request.user).distinct().order_by('-date_joined')
+            else:
+                return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                
+        if export_format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="users_{role.lower()}_export.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow(['ID', 'Full Name', 'Email', 'Phone', 'Status', 'Date Joined'])
+            
+            for u in users:
+                writer.writerow([
+                    u.id, 
+                    u.full_name, 
+                    u.email, 
+                    u.phone_number, 
+                    'Active' if u.is_active else 'Suspended',
+                    u.date_joined.strftime("%Y-%m-%d %H:%M:%S")
+                ])
+            return response
+            
+        elif export_format == 'excel':
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="users_{role.lower()}_export.xlsx"'
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Users"
+            ws.append(['ID', 'Full Name', 'Email', 'Phone', 'Status', 'Date Joined'])
+            
+            for u in users:
+                ws.append([
+                    u.id, 
+                    u.full_name, 
+                    u.email, 
+                    str(u.phone_number), 
+                    'Active' if u.is_active else 'Suspended',
+                    u.date_joined.strftime("%Y-%m-%d %H:%M:%S")
+                ])
+            wb.save(response)
+            return response
+            
+        elif export_format == 'pdf':
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="users_{role.lower()}_export.pdf"'
+            
+            p = canvas.Canvas(response, pagesize=letter)
+            p.drawString(100, 750, f"Users Export ({role})")
+            y = 700
+            for u in users[:50]: # limit to 50 for pdf simplicity
+                p.drawString(100, y, f"ID: {u.id} | Name: {u.full_name} | Email: {u.email}")
+                y -= 20
+                if y < 50:
+                    p.showPage()
+                    y = 750
+            p.showPage()
+            p.save()
+            return response
+
+        return Response({"error": "Invalid format"}, status=400)
