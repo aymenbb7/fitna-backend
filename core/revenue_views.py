@@ -130,22 +130,70 @@ class RevenueExportView(views.APIView):
             return response
             
         elif export_format == 'pdf':
-            from reportlab.lib.pagesizes import letter
-            from reportlab.pdfgen import canvas
+            import os
+            from django.conf import settings
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import letter, landscape
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.pdfbase.ttfonts import TTFont
+            from reportlab.pdfbase import pdfmetrics
+            import arabic_reshaper
+            from bidi.algorithm import get_display
+
             response = HttpResponse(content_type='application/pdf')
             response['Content-Disposition'] = 'attachment; filename="revenue_export.pdf"'
             
-            p = canvas.Canvas(response, pagesize=letter)
-            p.drawString(100, 750, "Revenue Report")
-            y = 700
-            for payment in payments[:50]: # limit to 50 for pdf simplicity
-                p.drawString(100, y, f"ID: {payment.id} | Amount: {payment.amount} | Status: {payment.payment_status}")
-                y -= 20
-                if y < 50:
-                    p.showPage()
-                    y = 750
-            p.showPage()
-            p.save()
+            font_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'fonts', 'Amiri-Regular.ttf')
+            pdfmetrics.registerFont(TTFont('Arabic', font_path))
+
+            def render_arabic(text):
+                if not text:
+                    return ''
+                return get_display(arabic_reshaper.reshape(str(text)))
+
+            doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+            elements = []
+
+            styles = getSampleStyleSheet()
+            title_style = ParagraphStyle(name='TitleStyle', fontName='Arabic', fontSize=18, alignment=1)
+            elements.append(Paragraph(render_arabic('تقرير العوائد المالية - منصة فطنة'), title_style))
+            elements.append(Spacer(1, 20))
+
+            data = [[
+                render_arabic('التاريخ'), 
+                render_arabic('طريقة الدفع'), 
+                render_arabic('الحالة'), 
+                render_arabic('المبلغ'), 
+                render_arabic('الدورة'), 
+                render_arabic('الطالب'), 
+                render_arabic('ID')
+            ]]
+
+            for p in payments:
+                data.append([
+                    p.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    render_arabic(p.payment_method),
+                    render_arabic(p.payment_status),
+                    f"{p.amount} {p.currency}",
+                    render_arabic(p.module.name),
+                    render_arabic(p.student.full_name if p.student.full_name else p.student.email),
+                    str(p.id)
+                ])
+
+            table = Table(data, colWidths=[100, 80, 70, 70, 150, 150, 40])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0D0B2B')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('FONTNAME', (0,0), (-1,-1), 'Arabic'),
+                ('BOTTOMPADDING', (0,0), (-1,0), 12),
+                ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#f9f9f9')),
+                ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#cccccc')),
+            ]))
+
+            elements.append(table)
+            doc.build(elements)
             return response
 
         return Response({"error": "Invalid format"}, status=400)
