@@ -98,7 +98,13 @@ class SiteSettingsView(views.APIView):
         ]
         for field in text_fields:
             if field in request.data:
-                setattr(s, field, request.data[field])
+                val = request.data[field]
+                if field == 'smtp_port':
+                    setattr(s, field, int(val) if val else 587)
+                elif field == 'smtp_use_tls':
+                    setattr(s, field, str(val).lower() == 'true')
+                else:
+                    setattr(s, field, val if val is not None else "")
         
         # File uploads only
         if 'logo' in request.FILES:
@@ -554,6 +560,24 @@ class SuperAdminUserUpdateView(views.APIView):
                     module.admin = user
                     module.save()
                     
+        if user.role == 'STUDENT' and 'module_slugs' in data:
+            from modules.models import Enrollment
+            new_slugs = set(data['module_slugs'])
+            current_enrollments = Enrollment.objects.filter(student=user)
+            current_slugs = set(current_enrollments.values_list('module__slug', flat=True))
+            
+            # Remove unselected
+            to_remove = current_slugs - new_slugs
+            if to_remove:
+                Enrollment.objects.filter(student=user, module__slug__in=to_remove).delete()
+            
+            # Add new selected
+            to_add = new_slugs - current_slugs
+            for slug in to_add:
+                module = Module.objects.filter(slug=slug).first()
+                if module:
+                    Enrollment.objects.get_or_create(student=user, module=module)
+                    
         return Response({"message": "User updated successfully"})
 
 class SuperAdminUserStatusView(views.APIView):
@@ -615,3 +639,39 @@ class SuperAdminCreateModuleAdminView(views.APIView):
             return Response(UserSerializer(admin_user).data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SuperAdminModuleStatsView(views.APIView):
+    permission_classes = (IsAdminUser,)
+
+    def get(self, request, slug):
+        from modules.models import Module, Enrollment
+        from django.db.models import Sum
+        
+        module = get_object_or_404(Module, slug=slug)
+        
+        if request.user.role == 'MODULE_ADMIN' and module.admin != request.user:
+            return Response({'error': 'Unauthorized'}, status=403)
+            
+        enrollments = Enrollment.objects.filter(module=module)
+        total_students = enrollments.count()
+        
+        from modules.models import Payment
+        payments = Payment.objects.filter(module=module, payment_status='SUCCESS')
+        total_revenue = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        latest_payments = payments.order_by('-created_at')[:5]
+        latest_payments_data = [{
+            'student_name': p.student.full_name,
+            'amount': p.amount,
+            'method': p.payment_method,
+            'paid_at': p.created_at
+        } for p in latest_payments]
+        
+        return Response({
+            'price': module.price,
+            'total_students': total_students,
+            'total_revenue': total_revenue,
+            'average_revenue': total_revenue / total_students if total_students > 0 else 0,
+            'latest_payments': latest_payments_data
+        })
