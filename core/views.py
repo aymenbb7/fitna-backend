@@ -71,56 +71,42 @@ class SiteSettingsView(views.APIView):
     def post(self, request):
         if request.user.role != 'SUPER_ADMIN':
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-            
+
         action = request.data.get('action', 'update')
         if action == 'test_email':
             return Response({"message": "تم إرسال بريد الاختبار بنجاح (Simulation)"})
-            
+
         from .models import SiteSettings
-        from .serializers import SiteSettingsSerializer
         s = SiteSettings.load()
-        
-        # Safe text/scalar fields - never pass image fields through JSON to avoid validation errors
-        text_fields = [
-            'site_name', 'logo_url', 'site_primary_color', 'site_secondary_color',
-            'landing_hero_title', 'landing_hero_subtitle', 'landing_hero_button_text', 'landing_hero_button_url',
-            'landing_about_title', 'landing_about_text',
-            'landing_programs_json', 'landing_features_json', 'landing_stats_json',
-            'landing_testimonials_json', 'landing_faq_json',
-            'landing_features_title', 'landing_features_subtitle', 'landing_stats_title',
-            'landing_programs_title', 'landing_how_it_works_title', 'landing_testimonials_title',
-            'landing_faq_title',
-            'landing_cta_title', 'landing_cta_text', 'landing_cta_button_text', 'landing_cta_button_url',
-            'contact_email', 'contact_phone', 'contact_address',
-            'footer_text', 'footer_desc',
-            'social_facebook', 'social_instagram', 'social_tiktok', 'social_whatsapp',
-            'smtp_host', 'smtp_port', 'smtp_username', 'smtp_use_tls',
-        ]
-        for field in text_fields:
+
+        # Dynamically update only fields that exist on the model (avoids crashes from unknown keys)
+        model_field_names = {f.name for f in SiteSettings._meta.get_fields()}
+        allowed_fields = model_field_names - {'id'}
+
+        for field in allowed_fields:
             if field in request.data:
                 val = request.data[field]
                 if field == 'smtp_port':
-                    setattr(s, field, int(val) if val else 587)
+                    try:
+                        setattr(s, field, int(val) if (val != '' and val is not None) else 587)
+                    except (ValueError, TypeError):
+                        setattr(s, field, 587)
                 elif field == 'smtp_use_tls':
-                    setattr(s, field, str(val).lower() == 'true')
+                    setattr(s, field, str(val).lower() in ('true', '1', 'yes'))
                 else:
-                    setattr(s, field, val if val is not None else "")
-        
-        # File uploads only
-        if 'logo' in request.FILES:
-            s.logo = request.FILES['logo']
-        if 'landing_hero_image' in request.FILES:
-            s.landing_hero_image = request.FILES['landing_hero_image']
-        if 'landing_about_image' in request.FILES:
-            s.landing_about_image = request.FILES['landing_about_image']
-        
-        # Handle password separately
+                    setattr(s, field, val if val is not None else '')
+
+        # Handle SMTP password separately — never overwrite with placeholder
         pwd = request.data.get('smtp_password', '')
         if pwd and pwd != '********':
             s.smtp_password = pwd
-            
-        s.save()
+
+        try:
+            s.save()
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"message": "تم حفظ الإعدادات بنجاح"})
+
 
 class PublicSiteSettingsView(views.APIView):
     permission_classes = (permissions.AllowAny,)
@@ -463,52 +449,41 @@ class UsersExportView(views.APIView):
             return response
             
         elif export_format == 'pdf':
-            import os
-            from django.conf import settings
             from reportlab.lib import colors
             from reportlab.lib.pagesizes import letter, landscape
             from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.pdfbase.ttfonts import TTFont
-            from reportlab.pdfbase import pdfmetrics
-            import arabic_reshaper
-            from bidi.algorithm import get_display
+            from core.pdf_utils import setup_arabic_font, render_arabic
 
             response = HttpResponse(content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="users_{role.lower()}_export.pdf"'
             
-            font_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'fonts', 'Amiri-Regular.ttf')
-            pdfmetrics.registerFont(TTFont('Arabic', font_path))
-
-            def render_arabic(text):
-                if not text:
-                    return ''
-                return get_display(arabic_reshaper.reshape(str(text)))
+            font_name = setup_arabic_font()
 
             doc = SimpleDocTemplate(response, pagesize=landscape(letter))
             elements = []
 
             styles = getSampleStyleSheet()
-            title_style = ParagraphStyle(name='TitleStyle', fontName='Arabic', fontSize=18, alignment=1)
-            elements.append(Paragraph(render_arabic(f'تقرير المستخدمين - منصة فطنة ({role})'), title_style))
+            title_style = ParagraphStyle(name='TitleStyle', fontName=font_name, fontSize=18, alignment=1)
+            elements.append(Paragraph(render_arabic(f'تقرير المستخدمين - منصة فطنة ({role})', font_name), title_style))
             elements.append(Spacer(1, 20))
 
             data = [[
-                render_arabic('تاريخ الانضمام'), 
-                render_arabic('الحالة'), 
-                render_arabic('رقم الهاتف'), 
-                render_arabic('البريد الإلكتروني'), 
-                render_arabic('الاسم الكامل'), 
-                render_arabic('ID')
+                render_arabic('تاريخ الانضمام', font_name), 
+                render_arabic('الحالة', font_name), 
+                render_arabic('رقم الهاتف', font_name), 
+                render_arabic('البريد الإلكتروني', font_name), 
+                render_arabic('الاسم الكامل', font_name), 
+                render_arabic('ID', font_name)
             ]]
 
             for u in users:
                 data.append([
                     u.date_joined.strftime("%Y-%m-%d %H:%M:%S"),
-                    render_arabic('نشط' if u.is_active else 'موقوف'),
-                    str(u.phone_number),
-                    u.email,
-                    render_arabic(u.full_name),
+                    render_arabic('نشط' if u.is_active else 'موقوف', font_name),
+                    str(u.phone_number or ''),
+                    u.email or '',
+                    render_arabic(u.full_name or '', font_name),
                     str(u.id)
                 ])
 
@@ -517,7 +492,7 @@ class UsersExportView(views.APIView):
                 ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0D0B2B')),
                 ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
                 ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('FONTNAME', (0,0), (-1,-1), 'Arabic'),
+                ('FONTNAME', (0,0), (-1,-1), font_name),
                 ('BOTTOMPADDING', (0,0), (-1,0), 12),
                 ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#f9f9f9')),
                 ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#cccccc')),
