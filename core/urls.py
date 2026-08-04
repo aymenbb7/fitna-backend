@@ -6,7 +6,7 @@ from .views import (
     StudentPaymentsView, UsersExportView, SiteSettingsView, PublicSiteSettingsView,
     SuperAdminUserUpdateView, SuperAdminUserStatusView, SuperAdminUserResetPasswordView,
     SuperAdminCreateModuleAdminView, SuperAdminModuleUpdateView,
-    SuperAdminModuleStatsView
+    SuperAdminModuleStatsView, SuperAdminUserDeleteView
 )
 from .revenue_views import RevenueStatsView, RevenueExportView
 from .notification_views import BroadcastNotificationView, NotificationHistoryView, NotificationDeleteView
@@ -19,6 +19,8 @@ urlpatterns = [
     path('users/', SuperAdminUsersView.as_view(), name='superadmin_users'),
     path('users/export/', UsersExportView.as_view(), name='users_export'),
     path('users/<int:pk>/update/', SuperAdminUserUpdateView.as_view(), name='superadmin_user_update'),
+    path('users/<int:pk>/delete/', SuperAdminUserDeleteView.as_view(), name='superadmin_user_delete'),
+    path('users/<int:pk>/', SuperAdminUserDeleteView.as_view(), name='superadmin_user_delete_alt'),
     path('users/<int:pk>/status/', SuperAdminUserStatusView.as_view(), name='superadmin_user_status'),
     path('users/<int:pk>/reset-password/', SuperAdminUserResetPasswordView.as_view(), name='superadmin_user_reset_password'),
     

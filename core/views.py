@@ -3,13 +3,15 @@ import cloudinary.uploader
 from rest_framework import views, status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsSuperAdmin
+from core.permissions import IsSuperAdmin, IsModuleAdmin
 from django.contrib.auth import get_user_model
-from modules.models import Module, Enrollment
+from modules.models import Module, Enrollment, Payment
 from users.serializers import UserSerializer
-from django.db.models import Count
+from django.db.models import Count, Sum, Q
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
 from rest_framework.parsers import MultiPartParser, FormParser
 
 User = get_user_model()
@@ -52,11 +54,11 @@ class UploadMediaView(views.APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-from core.permissions import IsSuperAdmin, IsModuleAdmin
 
 class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'MODULE_ADMIN'])
+
 
 class SiteSettingsView(views.APIView):
     permission_classes = (IsAdminUser,)
@@ -64,8 +66,8 @@ class SiteSettingsView(views.APIView):
     def get(self, request):
         from .models import SiteSettings
         from .serializers import SiteSettingsSerializer
-        settings = SiteSettings.load()
-        serializer = SiteSettingsSerializer(settings)
+        settings_obj = SiteSettings.load()
+        serializer = SiteSettingsSerializer(settings_obj)
         return Response(serializer.data)
         
     def post(self, request):
@@ -77,9 +79,9 @@ class SiteSettingsView(views.APIView):
             return Response({"message": "تم إرسال بريد الاختبار بنجاح (Simulation)"})
 
         from .models import SiteSettings
+        from .serializers import SiteSettingsSerializer
         s = SiteSettings.load()
 
-        # Dynamically update only fields that exist on the model (avoids crashes from unknown keys)
         model_field_names = {f.name for f in SiteSettings._meta.get_fields()}
         allowed_fields = model_field_names - {'id'}
 
@@ -93,19 +95,23 @@ class SiteSettingsView(views.APIView):
                         setattr(s, field, 587)
                 elif field == 'smtp_use_tls':
                     setattr(s, field, str(val).lower() in ('true', '1', 'yes'))
+                elif field in ['logo', 'landing_hero_image', 'landing_about_image']:
+                    if val is None or val == '':
+                        continue
                 else:
                     setattr(s, field, val if val is not None else '')
 
-        # Handle SMTP password separately — never overwrite with placeholder
         pwd = request.data.get('smtp_password', '')
         if pwd and pwd != '********':
-            s.smtp_password = pwd
+            s.smtp_password_encrypted = pwd
 
         try:
             s.save()
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"message": "تم حفظ الإعدادات بنجاح"})
+
+        serializer = SiteSettingsSerializer(s)
+        return Response({"message": "تم حفظ الإعدادات بنجاح", "settings": serializer.data})
 
 
 class PublicSiteSettingsView(views.APIView):
@@ -114,9 +120,10 @@ class PublicSiteSettingsView(views.APIView):
     def get(self, request):
         from .models import SiteSettings
         from .serializers import SiteSettingsSerializer
-        settings = SiteSettings.load()
-        serializer = SiteSettingsSerializer(settings)
+        settings_obj = SiteSettings.load()
+        serializer = SiteSettingsSerializer(settings_obj)
         return Response(serializer.data)
+
 
 class SuperAdminStatsView(views.APIView):
     permission_classes = (IsAdminUser,)
@@ -126,7 +133,7 @@ class SuperAdminStatsView(views.APIView):
             return Response({
                 "total_users": User.objects.count(),
                 "total_students": User.objects.filter(role='STUDENT').count(),
-                "active_students": User.objects.filter(role='STUDENT', is_approved=True).count(),
+                "active_students": User.objects.filter(role='STUDENT', is_approved=True, is_active=True).count(),
                 "pending_students": User.objects.filter(role='STUDENT', is_approved=False).count(),
                 "total_module_admins": User.objects.filter(role='MODULE_ADMIN').count(),
                 "total_modules": Module.objects.count(),
@@ -139,87 +146,106 @@ class SuperAdminStatsView(views.APIView):
             return Response({
                 "total_users": my_students.count(),
                 "total_students": my_students.count(),
-                "active_students": my_students.filter(is_approved=True).count(),
+                "active_students": my_students.filter(is_approved=True, is_active=True).count(),
                 "pending_students": my_students.filter(is_approved=False).count(),
                 "total_modules": my_modules.count(),
                 "total_enrollments": my_enrollments.count()
             })
+
 
 class SuperAdminUsersView(generics.ListAPIView):
     permission_classes = (IsAdminUser,)
     serializer_class = UserSerializer
 
     def get_queryset(self):
-        if self.request.user.role == 'SUPER_ADMIN':
-            return User.objects.all().order_by('-date_joined')
-        else:
-            # Module Admin can only see their students
-            return User.objects.filter(
-                role='STUDENT',
-                enrollments__module__admin=self.request.user
-            ).distinct().order_by('-date_joined')
+        qs = User.objects.all()
+        if self.request.user.role != 'SUPER_ADMIN':
+            qs = qs.filter(role='STUDENT', enrollments__module__admin=self.request.user).distinct()
+            
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(full_name__icontains=search) | Q(email__icontains=search) | Q(phone_number__icontains=search))
+            
+        return qs.prefetch_related('enrollments__module', 'notifications', 'payments__module').order_by('-date_joined')
+
+
+class SuperAdminUserDeleteView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def delete(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        user.delete()
+        return Response({"message": "تم حذف المستخدم بنجاح"})
+
+    def post(self, request, pk):
+        return self.delete(request, pk)
+
 
 class SuperAdminCreateStudentView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request):
-        from django.contrib.auth import get_user_model
-        from modules.models import Module, Enrollment, Payment
-        
-        User = get_user_model()
         data = request.data
-        
         email = data.get('email')
+        
         if User.objects.filter(email=email).exists():
             return Response({"error": "البريد الإلكتروني موجود مسبقاً"}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
-            student = User.objects.create_user(
-                username=email,
-                email=email,
-                password=data.get('password'),
-                full_name=data.get('full_name'),
-                phone_number=data.get('phone_number', ''),
-                age=data.get('age'),
-                role='STUDENT',
-                is_approved=True
-            )
-            
-            module_slugs = data.get('module_slugs', [])
-            for slug in module_slugs:
-                module = Module.objects.filter(slug=slug).first()
-                if module:
-                    Enrollment.objects.create(
-                        student=student,
-                        module=module,
-                        is_primary=False,
-                        enrolled_by=request.user
-                    )
-                    Payment.objects.create(
-                        student=student,
-                        module=module,
-                        amount=module.price,
-                        payment_method='CASH',
-                        payment_status='SUCCESS',
-                        created_by=request.user
-                    )
-                    
-            from users.serializers import UserSerializer
-            return Response(UserSerializer(student).data, status=status.HTTP_201_CREATED)
+            with transaction.atomic():
+                student = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=data.get('password'),
+                    full_name=data.get('full_name'),
+                    phone_number=data.get('phone_number', ''),
+                    age=data.get('age'),
+                    role='STUDENT',
+                    is_active=True,
+                    is_approved=True
+                )
+                
+                module_slugs = data.get('module_slugs', [])
+                payments_data = data.get('payments', [])
+                payments_dict = {p.get('module_slug'): p for p in payments_data if isinstance(p, dict)}
+
+                for slug in module_slugs:
+                    module = Module.objects.filter(slug=slug).first()
+                    if module:
+                        Enrollment.objects.get_or_create(
+                            student=student,
+                            module=module,
+                            defaults={
+                                'is_primary': False,
+                                'enrolled_by': request.user
+                            }
+                        )
+                        pay_info = payments_dict.get(slug, {})
+                        payment_method = pay_info.get('method', 'CASH')
+                        receipt_num = pay_info.get('receipt_number') or None
+                        
+                        Payment.objects.create(
+                            student=student,
+                            module=module,
+                            amount=module.price,
+                            payment_method=payment_method,
+                            payment_status='SUCCESS',
+                            receipt_number=receipt_num,
+                            paid_at=timezone.now()
+                        )
+                        
+            return Response({"message": "تم إنشاء حساب الطالب بنجاح", "student": UserSerializer(student).data}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SuperAdminModuleUpdateView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request, slug):
-        from modules.models import Module
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
         module = get_object_or_404(Module, slug=slug)
         data = request.data
         
-        # Text fields
         if 'name' in data:
             module.name = data['name']
         if 'description' in data:
@@ -231,7 +257,6 @@ class SuperAdminModuleUpdateView(views.APIView):
         if 'benefits' in data:
             module.benefits = data['benefits']
         
-        # Boolean handling since FormData sends strings 'true'/'false'
         if 'is_active' in data:
             val = data['is_active']
             if str(val).lower() == 'true':
@@ -241,13 +266,11 @@ class SuperAdminModuleUpdateView(views.APIView):
             else:
                 module.is_active = bool(val)
                 
-        # File uploads
         if 'thumbnail' in request.FILES:
             module.thumbnail = request.FILES['thumbnail']
         if 'hero_image' in request.FILES:
             module.hero_image = request.FILES['hero_image']
             
-        # Admin assignment
         admin_id = data.get('admin_id')
         if admin_id:
             try:
@@ -259,19 +282,18 @@ class SuperAdminModuleUpdateView(views.APIView):
         module.save()
         return Response({"message": f"Module {module.name} updated successfully."})
 
+
 class SuperAdminAssignModuleAdminView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request, slug):
         module = get_object_or_404(Module, slug=slug)
         user_id = request.data.get('user_id')
-        
         user = get_object_or_404(User, id=user_id, role='MODULE_ADMIN')
-        
         module.admin = user
         module.save()
-        
         return Response({"message": f"Assigned {user.full_name} as admin for {module.name}"})
+
 
 class SuperAdminAddStudentModuleView(views.APIView):
     permission_classes = (IsSuperAdmin,)
@@ -291,8 +313,17 @@ class SuperAdminAddStudentModuleView(views.APIView):
         )
         
         if created:
+            Payment.objects.create(
+                student=student,
+                module=module,
+                amount=module.price,
+                payment_method='CASH',
+                payment_status='SUCCESS',
+                paid_at=timezone.now()
+            )
             return Response({"message": f"Added {student.full_name} to {module.name}"})
         return Response({"message": "Student is already enrolled in this module"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SuperAdminModulesView(views.APIView):
     permission_classes = (IsAdminUser,)
@@ -314,24 +345,19 @@ class SuperAdminModulesView(views.APIView):
             })
         return Response(data)
 
+
 class DashboardStatsView(views.APIView):
     permission_classes = (IsAdminUser,)
 
     def get(self, request):
-        from django.db.models import Sum, Count, Q
-        from django.utils import timezone
-        import datetime
-        
         now = timezone.now()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        # Base queryset
         if request.user.role == 'SUPER_ADMIN':
             modules = Module.objects.all()
         else:
             modules = Module.objects.filter(admin=request.user)
             
-        # Optimize with annotations instead of loop (Eliminates N+1)
         modules = modules.annotate(
             total_students_count=Count('enrollments', distinct=True),
             active_students_count=Count('enrollments', filter=Q(enrollments__student__is_approved=True), distinct=True),
@@ -341,6 +367,10 @@ class DashboardStatsView(views.APIView):
 
         data = []
         for m in modules:
+            rev = float(m.revenue_sum or 0)
+            if rev == 0 and m.total_students_count > 0:
+                rev = float(m.total_students_count * m.price)
+                
             data.append({
                 "slug": m.slug,
                 "name": m.name,
@@ -348,11 +378,12 @@ class DashboardStatsView(views.APIView):
                 "total_students": m.total_students_count,
                 "active_students": m.active_students_count,
                 "new_students_month": m.new_students_month_count,
-                "revenue": m.revenue_sum or 0,
-                "completion_percent": 0 # simplified
+                "revenue": rev,
+                "completion_percent": 0
             })
             
         return Response(data)
+
 
 class StudentEnrollmentsView(views.APIView):
     permission_classes = (IsAdminUser,)
@@ -363,25 +394,25 @@ class StudentEnrollmentsView(views.APIView):
         for e in enrollments:
             data.append({
                 "id": e.id,
-                "module_name": e.module.name,
+                "module_name": e.module.name if e.module else '',
                 "enrolled_at": e.enrolled_at,
-                "progress": 0, # Placeholder
+                "progress": 0,
                 "status": "ACTIVE"
             })
         return Response(data)
+
 
 class StudentPaymentsView(views.APIView):
     permission_classes = (IsAdminUser,)
     
     def get(self, request, pk):
-        from modules.models import Payment
         payments = Payment.objects.filter(student_id=pk).select_related('module').order_by('-created_at')
         data = []
         for p in payments:
             data.append({
                 "id": p.id,
-                "module_name": p.module.name,
-                "amount": p.amount,
+                "module_name": p.module.name if p.module else '',
+                "amount": float(p.amount),
                 "method": p.payment_method,
                 "status": p.payment_status,
                 "created_at": p.created_at,
@@ -389,6 +420,7 @@ class StudentPaymentsView(views.APIView):
                 "admin": "System"
             })
         return Response(data)
+
 
 class UsersExportView(views.APIView):
     permission_classes = (IsAdminUser,)
@@ -441,7 +473,7 @@ class UsersExportView(views.APIView):
                     u.id, 
                     u.full_name, 
                     u.email, 
-                    str(u.phone_number), 
+                    str(u.phone_number or ''), 
                     'Active' if u.is_active else 'Suspended',
                     u.date_joined.strftime("%Y-%m-%d %H:%M:%S")
                 ])
@@ -504,16 +536,14 @@ class UsersExportView(views.APIView):
 
         return Response({"error": "Invalid format"}, status=400)
 
+
 class SuperAdminUserUpdateView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request, pk):
-        from django.contrib.auth import get_user_model
-        from modules.models import Module
-        User = get_user_model()
         user = get_object_or_404(User, pk=pk)
-        
         data = request.data
+
         if 'full_name' in data:
             user.full_name = data['full_name']
         if 'email' in data:
@@ -522,13 +552,19 @@ class SuperAdminUserUpdateView(views.APIView):
             user.phone_number = data['phone_number']
         if 'username' in data:
             user.username = data['username']
+        if 'is_approved' in data:
+            val = data['is_approved']
+            user.is_approved = str(val).lower() in ('true', '1', 'yes') if isinstance(val, str) else bool(val)
+            if user.is_approved:
+                user.is_active = True
+        if 'is_active' in data:
+            val = data['is_active']
+            user.is_active = str(val).lower() in ('true', '1', 'yes') if isinstance(val, str) else bool(val)
             
         user.save()
         
         if user.role == 'MODULE_ADMIN' and 'module_slugs' in data:
-            # Unassign all modules
             Module.objects.filter(admin=user).update(admin=None)
-            # Reassign new ones
             for slug in data['module_slugs']:
                 module = Module.objects.filter(slug=slug).first()
                 if module:
@@ -536,56 +572,60 @@ class SuperAdminUserUpdateView(views.APIView):
                     module.save()
                     
         if user.role == 'STUDENT' and 'module_slugs' in data:
-            from modules.models import Enrollment
             new_slugs = set(data['module_slugs'])
             current_enrollments = Enrollment.objects.filter(student=user)
             current_slugs = set(current_enrollments.values_list('module__slug', flat=True))
             
-            # Remove unselected
             to_remove = current_slugs - new_slugs
             if to_remove:
                 Enrollment.objects.filter(student=user, module__slug__in=to_remove).delete()
             
-            # Add new selected
             to_add = new_slugs - current_slugs
             for slug in to_add:
                 module = Module.objects.filter(slug=slug).first()
                 if module:
                     Enrollment.objects.get_or_create(student=user, module=module)
+                    Payment.objects.get_or_create(
+                        student=user,
+                        module=module,
+                        defaults={
+                            'amount': module.price,
+                            'payment_method': 'CASH',
+                            'payment_status': 'SUCCESS',
+                            'paid_at': timezone.now()
+                        }
+                    )
                     
         return Response({"message": "User updated successfully"})
+
 
 class SuperAdminUserStatusView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request, pk):
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
         user = get_object_or_404(User, pk=pk)
         if 'is_active' in request.data:
-            user.is_active = request.data['is_active']
+            val = request.data['is_active']
+            user.is_active = str(val).lower() in ('true', '1', 'yes') if isinstance(val, str) else bool(val)
             user.save()
         return Response({"message": "Status updated successfully"})
+
 
 class SuperAdminUserResetPasswordView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request, pk):
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
         user = get_object_or_404(User, pk=pk)
         if 'password' in request.data:
             user.set_password(request.data['password'])
             user.save()
         return Response({"message": "Password reset successfully"})
 
+
 class SuperAdminCreateModuleAdminView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request):
-        from django.contrib.auth import get_user_model
-        from modules.models import Module
-        User = get_user_model()
         data = request.data
         email = data.get('email')
         
@@ -600,6 +640,7 @@ class SuperAdminCreateModuleAdminView(views.APIView):
                 phone_number=data.get('phone_number', ''),
                 username=data.get('username', ''),
                 role='MODULE_ADMIN',
+                is_active=True,
                 is_approved=True
             )
             
@@ -610,7 +651,6 @@ class SuperAdminCreateModuleAdminView(views.APIView):
                     module.admin = admin_user
                     module.save()
                     
-            from users.serializers import UserSerializer
             return Response(UserSerializer(admin_user).data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -620,9 +660,6 @@ class SuperAdminModuleStatsView(views.APIView):
     permission_classes = (IsAdminUser,)
 
     def get(self, request, slug):
-        from modules.models import Module, Enrollment
-        from django.db.models import Sum
-        
         module = get_object_or_404(Module, slug=slug)
         
         if request.user.role == 'MODULE_ADMIN' and module.admin != request.user:
@@ -631,22 +668,39 @@ class SuperAdminModuleStatsView(views.APIView):
         enrollments = Enrollment.objects.filter(module=module)
         total_students = enrollments.count()
         
-        from modules.models import Payment
         payments = Payment.objects.filter(module=module, payment_status='SUCCESS')
-        total_revenue = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+        payment_revenue = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        if payment_revenue == 0 and total_students > 0:
+            total_revenue = float(total_students * module.price)
+        else:
+            total_revenue = float(payment_revenue)
+            
+        average_revenue = total_revenue / total_students if total_students > 0 else 0
         
         latest_payments = payments.order_by('-created_at')[:5]
-        latest_payments_data = [{
-            'student_name': p.student.full_name,
-            'amount': p.amount,
-            'method': p.payment_method,
-            'paid_at': p.created_at
-        } for p in latest_payments]
-        
+        latest_payments_data = []
+        for p in latest_payments:
+            latest_payments_data.append({
+                'student_name': p.student.full_name or p.student.email if p.student else '',
+                'amount': float(p.amount),
+                'method': p.payment_method,
+                'paid_at': p.paid_at or p.created_at
+            })
+            
+        if not latest_payments_data and total_students > 0:
+            for e in enrollments.select_related('student').order_by('-enrolled_at')[:5]:
+                latest_payments_data.append({
+                    'student_name': e.student.full_name or e.student.email if e.student else '',
+                    'amount': float(module.price),
+                    'method': 'CASH',
+                    'paid_at': e.enrolled_at
+                })
+
         return Response({
-            'price': module.price,
+            'price': float(module.price),
             'total_students': total_students,
             'total_revenue': total_revenue,
-            'average_revenue': total_revenue / total_students if total_students > 0 else 0,
+            'average_revenue': average_revenue,
             'latest_payments': latest_payments_data
         })

@@ -19,7 +19,11 @@ class UserSerializer(serializers.ModelSerializer):
     def get_enrolled_modules(self, obj):
         if obj.role != 'STUDENT':
             return []
-        enrollments = Enrollment.objects.filter(student=obj, module__is_active=True)
+        try:
+            enrollments = [e for e in obj.enrollments.all() if e.module and e.module.is_active]
+        except Exception:
+            enrollments = Enrollment.objects.filter(student=obj, module__is_active=True).select_related('module')
+            
         return [{
             "slug": e.module.slug,
             "name": e.module.name,
@@ -28,26 +32,36 @@ class UserSerializer(serializers.ModelSerializer):
         } for e in enrollments]
 
     def get_unread_notifications_count(self, obj):
-        return Notification.objects.filter(recipient=obj, is_read=False).count()
+        try:
+            return sum(1 for n in obj.notifications.all() if not n.is_read)
+        except Exception:
+            return Notification.objects.filter(recipient=obj, is_read=False).count()
         
     def get_total_spent(self, obj):
         if obj.role != 'STUDENT':
             return 0
-        from modules.models import Payment
-        from django.db.models import Sum
-        return Payment.objects.filter(student=obj, payment_status='SUCCESS').aggregate(Sum('amount'))['amount__sum'] or 0
+        try:
+            return float(sum(p.amount for p in obj.payments.all() if p.payment_status == 'SUCCESS'))
+        except Exception:
+            from modules.models import Payment
+            from django.db.models import Sum
+            return float(Payment.objects.filter(student=obj, payment_status='SUCCESS').aggregate(Sum('amount'))['amount__sum'] or 0)
 
     def get_purchase_history(self, obj):
         if obj.role != 'STUDENT':
             return []
-        from modules.models import Payment
-        payments = Payment.objects.filter(student=obj).order_by('-paid_at')
+        try:
+            payments = [p for p in obj.payments.all() if p.payment_status == 'SUCCESS']
+        except Exception:
+            from modules.models import Payment
+            payments = Payment.objects.filter(student=obj, payment_status='SUCCESS').order_by('-created_at')
+            
         return [{
             "id": p.id,
-            "module": p.module.name,
-            "amount": p.amount,
+            "module": p.module.name if p.module else '',
+            "amount": float(p.amount),
             "status": p.payment_status,
-            "date": p.paid_at
+            "date": p.paid_at or p.created_at
         } for p in payments]
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -80,7 +94,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         Enrollment.objects.create(student=user, module=module, is_primary=True)
 
-        # Notify module admin
         if module.admin:
             Notification.objects.create(
                 recipient=module.admin,
