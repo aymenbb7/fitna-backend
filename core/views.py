@@ -98,6 +98,8 @@ class SiteSettingsView(views.APIView):
                 elif field in ['logo', 'landing_hero_image', 'landing_about_image']:
                     if val is None or val == '':
                         continue
+                    else:
+                        setattr(s, field, val)
                 else:
                     setattr(s, field, val if val is not None else '')
 
@@ -106,8 +108,19 @@ class SiteSettingsView(views.APIView):
             s.smtp_password_encrypted = pwd
 
         try:
+            s.full_clean()
             s.save()
         except Exception as e:
+            # Handle Django ValidationError and format it
+            from django.core.exceptions import ValidationError
+            if isinstance(e, ValidationError):
+                error_dict = getattr(e, 'message_dict', {})
+                if error_dict:
+                    # Return the first error message
+                    first_field = list(error_dict.keys())[0]
+                    first_error = error_dict[first_field][0]
+                    return Response({"error": f"{first_field}: {first_error}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = SiteSettingsSerializer(s)

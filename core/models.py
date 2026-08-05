@@ -41,10 +41,10 @@ class SiteSettings(models.Model):
     site_secondary_color = models.CharField(max_length=7, blank=True, default='#7C3AED')
 
     # Hero Section
-    landing_hero_title = models.CharField(max_length=255, default='منصة فطنة')
-    landing_hero_subtitle = models.TextField(blank=True, default='نُعدّهم للحياة، لا للامتحانات!')
-    landing_hero_button_text = models.CharField(max_length=100, default='ابدأ رحلتك الآن 🚀')
-    landing_hero_button_url = models.CharField(max_length=255, default='/login')
+    landing_hero_title = models.CharField(max_length=255, blank=True, default='منصة فطنة')
+    landing_hero_subtitle = models.TextField(blank=True, default='')
+    landing_hero_button_text = models.CharField(max_length=100, blank=True, default='ابدأ الآن')
+    landing_hero_button_url = models.CharField(max_length=255, blank=True, default='/login')
     landing_hero_image = models.ImageField(upload_to='settings/', blank=True, null=True)
 
     # Programs
@@ -79,15 +79,15 @@ class SiteSettings(models.Model):
     # CTA
     landing_cta_title = models.CharField(max_length=255, blank=True, default='جاهز تصنع إنجازك؟')
     landing_cta_text = models.TextField(blank=True, default='انضم إلى آلاف الطلاب واستمتع بتجربة تعليمية فريدة.')
-    landing_cta_button_text = models.CharField(max_length=100, default='ابدأ الآن')
-    landing_cta_button_url = models.CharField(max_length=255, default='/login')
+    landing_cta_button_text = models.CharField(max_length=100, blank=True, default='ابدأ الآن')
+    landing_cta_button_url = models.CharField(max_length=255, blank=True, default='/login')
 
     # Footer & Contact
     footer_desc = models.TextField(blank=True, default='منصة تعليمية تربوية تهدف لتأسيس أطفالنا وتطوير مهاراتهم باللعب والتفاعل.')
     footer_text = models.CharField(max_length=255, blank=True, default='جميع الحقوق محفوظة © منصة فطنة')
-    contact_email = models.CharField(max_length=255, blank=True, default='contact@fitna.dz')
-    contact_phone = models.CharField(max_length=255, blank=True, default='+213795375422')
-    contact_address = models.TextField(blank=True, default='الجزائر العاصمة، الجزائر')
+    contact_email = models.CharField(max_length=255, blank=True, default='info@fitna.dz')
+    contact_phone = models.CharField(max_length=255, blank=True, default='+213773650836')
+    contact_address = models.TextField(blank=True, default='الجزائر العاصمة')
     social_whatsapp = models.CharField(max_length=255, blank=True, default='+213773650836')
     social_facebook = models.CharField(max_length=255, blank=True, default='https://facebook.com')
     social_instagram = models.CharField(max_length=255, blank=True, default='https://instagram.com')
@@ -111,23 +111,26 @@ class SiteSettings(models.Model):
     @classmethod
     def load(cls):
         obj, created = cls.objects.get_or_create(pk=1)
+        
         # Ensure default rich JSONs if fields were empty or '[]'
-        updated = False
+        if not obj.contact_email or obj.contact_email == 'contact@fitna.dz':
+            obj.contact_email = 'info@fitna.dz'
+        if not obj.contact_phone or '795' in str(obj.contact_phone):
+            obj.contact_phone = '+213773650836'
+        if not obj.contact_address or obj.contact_address == 'الجزائر العاصمة، الجزائر':
+            obj.contact_address = 'الجزائر العاصمة'
+        if not obj.social_whatsapp or '795' in str(obj.social_whatsapp) or '0773650836' in str(obj.social_whatsapp):
+            obj.social_whatsapp = '+213773650836'
+
         if not obj.landing_programs_json or obj.landing_programs_json == '[]':
             obj.landing_programs_json = DEFAULT_PROGRAMS_JSON
-            updated = True
         if not obj.landing_features_json or obj.landing_features_json == '[]':
             obj.landing_features_json = DEFAULT_FEATURES_JSON
-            updated = True
         if not obj.landing_stats_json or obj.landing_stats_json == '[]':
             obj.landing_stats_json = DEFAULT_STATS_JSON
-            updated = True
         if not obj.landing_testimonials_json or obj.landing_testimonials_json == '[]':
             obj.landing_testimonials_json = DEFAULT_TESTIMONIALS_JSON
-            updated = True
         if not obj.landing_faq_json or obj.landing_faq_json == '[]':
             obj.landing_faq_json = DEFAULT_FAQ_JSON
-            updated = True
-        if updated:
-            obj.save()
+            
         return obj
