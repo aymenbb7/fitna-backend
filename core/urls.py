@@ -13,7 +13,6 @@ from .notification_views import BroadcastNotificationView, NotificationHistoryVi
 
 urlpatterns = [
     path('site-settings/', SiteSettingsView.as_view(), name='site_settings'),
-    path('public-site-settings/', PublicSiteSettingsView.as_view(), name='public_site_settings'),
     path('stats/', SuperAdminStatsView.as_view(), name='superadmin_stats'),
     
     path('users/', SuperAdminUsersView.as_view(), name='superadmin_users'),
