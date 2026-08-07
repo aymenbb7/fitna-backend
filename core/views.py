@@ -252,6 +252,76 @@ class SuperAdminCreateStudentView(views.APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ModuleAdminCreateStudentView(views.APIView):
+    """Allows MODULE_ADMIN to create a student and enroll them in their own modules only."""
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        if request.user.role not in ['SUPER_ADMIN', 'MODULE_ADMIN']:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        data = request.data
+        email = data.get('email')
+
+        if User.objects.filter(email=email).exists():
+            return Response({"error": "البريد الإلكتروني موجود مسبقاً"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # For module admin: only allow enrolling in their own modules
+        if request.user.role == 'MODULE_ADMIN':
+            my_module_slugs = list(Module.objects.filter(admin=request.user).values_list('slug', flat=True))
+            requested_slugs = data.get('module_slugs', [])
+            # Silently restrict to only their modules
+            allowed_slugs = [s for s in requested_slugs if s in my_module_slugs]
+        else:
+            allowed_slugs = data.get('module_slugs', [])
+
+        try:
+            with transaction.atomic():
+                student = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=data.get('password'),
+                    full_name=data.get('full_name'),
+                    phone_number=data.get('phone_number', ''),
+                    age=data.get('age'),
+                    role='STUDENT',
+                    is_active=True,
+                    is_approved=True
+                )
+
+                payments_data = data.get('payments', [])
+                payments_dict = {p.get('module_slug'): p for p in payments_data if isinstance(p, dict)}
+
+                for slug in allowed_slugs:
+                    module = Module.objects.filter(slug=slug).first()
+                    if module:
+                        Enrollment.objects.get_or_create(
+                            student=student,
+                            module=module,
+                            defaults={
+                                'is_primary': False,
+                                'enrolled_by': request.user
+                            }
+                        )
+                        pay_info = payments_dict.get(slug, {})
+                        payment_method = pay_info.get('method', 'CASH')
+                        receipt_num = pay_info.get('receipt_number') or None
+
+                        Payment.objects.create(
+                            student=student,
+                            module=module,
+                            amount=module.price,
+                            payment_method=payment_method,
+                            payment_status='SUCCESS',
+                            receipt_number=receipt_num,
+                            paid_at=timezone.now()
+                        )
+
+            return Response({"message": "تم إنشاء حساب الطالب بنجاح", "student": UserSerializer(student).data}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class SuperAdminModuleUpdateView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
@@ -350,8 +420,10 @@ class SuperAdminModulesView(views.APIView):
         data = []
         for m in modules:
             data.append({
+                "id": m.id,
                 "slug": m.slug,
                 "name": m.name,
+                "price": float(m.price) if m.price is not None else 0,
                 "admin": m.admin.full_name if m.admin else None,
                 "student_count": m.student_count,
                 "is_active": m.is_active

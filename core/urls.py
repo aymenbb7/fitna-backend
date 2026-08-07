@@ -6,7 +6,7 @@ from .views import (
     StudentPaymentsView, UsersExportView, SiteSettingsView, PublicSiteSettingsView,
     SuperAdminUserUpdateView, SuperAdminUserStatusView, SuperAdminUserResetPasswordView,
     SuperAdminCreateModuleAdminView, SuperAdminModuleUpdateView,
-    SuperAdminModuleStatsView, SuperAdminUserDeleteView
+    SuperAdminModuleStatsView, SuperAdminUserDeleteView, ModuleAdminCreateStudentView
 )
 from .revenue_views import RevenueStatsView, RevenueExportView
 from .notification_views import BroadcastNotificationView, NotificationHistoryView, NotificationDeleteView
@@ -32,6 +32,7 @@ urlpatterns = [
     path('modules/<str:slug>/assign-admin/', SuperAdminAssignModuleAdminView.as_view(), name='superadmin_assign_admin'),
     
     path('students/create/', SuperAdminCreateStudentView.as_view(), name='superadmin_create_student'),
+    path('students/create-by-admin/', ModuleAdminCreateStudentView.as_view(), name='module_admin_create_student'),
     path('students/<int:pk>/add-module/', SuperAdminAddStudentModuleView.as_view(), name='superadmin_add_student_module'),
     path('students/<int:pk>/enrollments/', StudentEnrollmentsView.as_view(), name='student_enrollments'),
     path('students/<int:pk>/payments/', StudentPaymentsView.as_view(), name='student_payments'),
