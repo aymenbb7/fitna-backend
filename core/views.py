@@ -323,45 +323,64 @@ class ModuleAdminCreateStudentView(views.APIView):
 
 
 class SuperAdminModuleUpdateView(views.APIView):
-    permission_classes = (IsSuperAdmin,)
+    permission_classes = (IsAuthenticated,)
+
+    def has_module_permission(self, request, module):
+        """Returns True if the user is allowed to update this module."""
+        user = request.user
+        if user.role == 'SUPER_ADMIN':
+            return True
+        if user.role == 'MODULE_ADMIN':
+            try:
+                return user.managed_module.slug == module.slug
+            except Exception:
+                return False
+        return False
 
     def post(self, request, slug):
         module = get_object_or_404(Module, slug=slug)
+        if not self.has_module_permission(request, module):
+            return Response({"detail": "You do not have permission to perform this action."}, status=403)
+
         data = request.data
-        
+        is_super = request.user.role == 'SUPER_ADMIN'
+
+        # Fields available to all admins (MODULE_ADMIN + SUPER_ADMIN)
         if 'name' in data:
             module.name = data['name']
         if 'description' in data:
             module.description = data['description']
-        if 'price' in data:
-            module.price = data['price']
         if 'learning_outcomes' in data:
             module.learning_outcomes = data['learning_outcomes']
         if 'benefits' in data:
             module.benefits = data['benefits']
-        
-        if 'is_active' in data:
-            val = data['is_active']
-            if str(val).lower() == 'true':
-                module.is_active = True
-            elif str(val).lower() == 'false':
-                module.is_active = False
-            else:
-                module.is_active = bool(val)
-                
+        if 'thumbnail' in data and data['thumbnail']:
+            module.cover_image_url = data['thumbnail']
         if 'thumbnail' in request.FILES:
             module.thumbnail = request.FILES['thumbnail']
         if 'hero_image' in request.FILES:
             module.hero_image = request.FILES['hero_image']
-            
-        admin_id = data.get('admin_id')
-        if admin_id:
-            try:
-                admin_user = User.objects.get(id=admin_id, role='MODULE_ADMIN')
-                module.admin = admin_user
-            except User.DoesNotExist:
-                pass
-                
+
+        # Fields restricted to SUPER_ADMIN only
+        if is_super:
+            if 'price' in data:
+                module.price = data['price']
+            if 'is_active' in data:
+                val = data['is_active']
+                if str(val).lower() == 'true':
+                    module.is_active = True
+                elif str(val).lower() == 'false':
+                    module.is_active = False
+                else:
+                    module.is_active = bool(val)
+            admin_id = data.get('admin_id')
+            if admin_id:
+                try:
+                    admin_user = User.objects.get(id=admin_id, role='MODULE_ADMIN')
+                    module.admin = admin_user
+                except User.DoesNotExist:
+                    pass
+
         module.save()
         return Response({"message": f"Module {module.name} updated successfully."})
 
