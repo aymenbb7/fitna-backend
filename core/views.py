@@ -23,34 +23,49 @@ class UploadMediaView(views.APIView):
     def post(self, request):
         if request.user.role not in ['SUPER_ADMIN', 'MODULE_ADMIN']:
             return Response({"error": "Not authorized to upload media"}, status=status.HTTP_403_FORBIDDEN)
-            
+
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         try:
-            import requests
-            import os
-            cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
-            if not cloud_name:
+            import cloudinary
+            import cloudinary.uploader
+
+            # Configure cloudinary with credentials from Django settings
+            cloudinary.config(
+                cloud_name=settings.CLOUDINARY_STORAGE.get('CLOUD_NAME'),
+                api_key=settings.CLOUDINARY_STORAGE.get('API_KEY'),
+                api_secret=settings.CLOUDINARY_STORAGE.get('API_SECRET'),
+                secure=True,
+            )
+
+            if not settings.CLOUDINARY_STORAGE.get('CLOUD_NAME'):
                 return Response({"error": "Cloudinary not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
-            url = f"https://api.cloudinary.com/v1_1/{cloud_name}/auto/upload"
-            data = {
-                "upload_preset": "fitna_uploads"
-            }
-            files = {
-                "file": (file_obj.name, file_obj.read(), file_obj.content_type)
-            }
-            
-            response = requests.post(url, data=data, files=files)
-            response_data = response.json()
-            
-            if response.status_code == 200:
-                return Response({"url": response_data.get("secure_url")})
+
+            # Determine resource type from MIME
+            content_type = file_obj.content_type or ''
+            if content_type.startswith('image/'):
+                resource_type = 'image'
+            elif content_type.startswith('video/') or content_type.startswith('audio/'):
+                resource_type = 'video'
             else:
-                return Response({"error": response_data.get("error", {}).get("message", "Upload failed")}, status=status.HTTP_400_BAD_REQUEST)
-                
+                resource_type = 'raw'
+
+            result = cloudinary.uploader.upload(
+                file_obj,
+                resource_type=resource_type,
+                folder='fitna_uploads',
+                use_filename=True,
+                unique_filename=True,
+            )
+
+            secure_url = result.get('secure_url')
+            if secure_url:
+                return Response({"url": secure_url})
+            else:
+                return Response({"error": "Upload succeeded but no URL returned"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
