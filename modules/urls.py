@@ -2,7 +2,8 @@ from django.urls import path, include
 from .views import (
     ModuleListView, ModuleDetailView, ModuleDashboardView,
     StudentListView, PendingStudentListView, ApproveStudentView,
-    RejectStudentView, RemoveStudentView, ModuleSettingsUpdateView, ModuleAnalyticsView
+    RejectStudentView, RemoveStudentView, ModuleSettingsUpdateView, ModuleAnalyticsView,
+    ModuleTrialView
 )
 
 urlpatterns = [
@@ -10,6 +11,7 @@ urlpatterns = [
     path('<slug:slug>/', ModuleDetailView.as_view(), name='module_detail'),
     path('<slug:slug>/dashboard/', ModuleDashboardView.as_view(), name='module_dashboard'),
     path('<slug:slug>/analytics/', ModuleAnalyticsView.as_view(), name='module_analytics'),
+    path('<slug:slug>/trial/', ModuleTrialView.as_view(), name='module_trial'),
     
     # Settings
     path('<slug:slug>/settings/', ModuleSettingsUpdateView.as_view(), name='module_settings'),

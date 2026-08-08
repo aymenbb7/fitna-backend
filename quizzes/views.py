@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from .models import Quiz, Question, AnswerChoice, QuizAttempt, StudentAnswer
-from .serializers import QuizSerializer, QuestionSerializer, QuizAttemptSerializer
+from .serializers import QuizSerializer, QuestionSerializer, QuizAttemptSerializer, AnswerChoiceSerializer
 from modules.models import Module
 from content.views import IsContentReaderOrAdmin
 from core.permissions import IsModuleOwner, IsSuperAdmin
@@ -275,3 +275,21 @@ class QuizMyResultsView(views.APIView):
         attempts = QuizAttempt.objects.filter(quiz=quiz, student=request.user, is_completed=True)
         serializer = QuizAttemptSerializer(attempts, many=True)
         return Response(serializer.data)
+
+class AnswerChoiceViewSet(viewsets.ModelViewSet):
+    serializer_class = AnswerChoiceSerializer
+    permission_classes = (IsModuleOwner | IsSuperAdmin,)
+
+    def get_queryset(self):
+        return AnswerChoice.objects.filter(
+            question_id=self.kwargs.get('question_pk'),
+            question__quiz_id=self.kwargs.get('quiz_pk')
+        )
+
+    def perform_create(self, serializer):
+        question = get_object_or_404(
+            Question, 
+            pk=self.kwargs.get('question_pk'), 
+            quiz_id=self.kwargs.get('quiz_pk')
+        )
+        serializer.save(question=question)

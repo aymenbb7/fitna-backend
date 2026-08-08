@@ -10,13 +10,20 @@ from .serializers import ModuleSerializer, StudentListSerializer, ModuleSettings
 from core.permissions import IsModuleOwner, IsSuperAdmin
 from users.models import Notification
 from quizzes.models import QuizAttempt
+from content.models import Lesson
+from content.serializers import LessonSerializer
 
 User = get_user_model()
 
 class ModuleListView(generics.ListAPIView):
-    queryset = Module.objects.filter(is_active=True).order_by('display_order')
     serializer_class = ModuleSerializer
     permission_classes = (AllowAny,)
+
+    def get_queryset(self):
+        qs = Module.objects.filter(is_active=True).order_by('display_order')
+        if self.request.query_params.get('enrolled') == 'true' and self.request.user.is_authenticated:
+            qs = qs.filter(enrollments__student=self.request.user)
+        return qs
 
 class ModuleDetailView(generics.RetrieveAPIView):
     queryset = Module.objects.filter(is_active=True)
@@ -185,3 +192,12 @@ class ModuleAnalyticsView(views.APIView):
                 "worst_performing_quiz": {"title": worst_quiz.title, "avg_score": worst_quiz.avg_score} if worst_quiz else None,
             }
         })
+
+class ModuleTrialView(views.APIView):
+    permission_classes = (AllowAny,)
+
+    def get(self, request, slug):
+        module = get_object_or_404(Module, slug=slug)
+        lessons = Lesson.objects.filter(section__module=module, is_preview=True, is_active=True).order_by('section__display_order', 'display_order')
+        serializer = LessonSerializer(lessons, many=True)
+        return Response(serializer.data)

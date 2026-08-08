@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    QuizViewSet, QuestionViewSet, StartQuizAttemptView,
+    QuizViewSet, QuestionViewSet, AnswerChoiceViewSet, StartQuizAttemptView,
     SubmitQuizAttemptView, QuizResultsAdminView, QuizMyResultsView
 )
 
@@ -16,6 +16,9 @@ urlpatterns = [
     
     path('<int:quiz_pk>/questions/', QuestionViewSet.as_view({'get': 'list', 'post': 'create'}), name='question_list'),
     path('<int:quiz_pk>/questions/<int:pk>/', QuestionViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='question_detail'),
+    
+    path('<int:quiz_pk>/questions/<int:question_pk>/choices/', AnswerChoiceViewSet.as_view({'get': 'list', 'post': 'create'}), name='choice_list'),
+    path('<int:quiz_pk>/questions/<int:question_pk>/choices/<int:pk>/', AnswerChoiceViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='choice_detail'),
     
     path('', include(router.urls)),
 ]

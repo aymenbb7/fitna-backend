@@ -33,6 +33,9 @@ class Module(models.Model):
     cover_image_url = models.URLField(blank=True, null=True)
     color_primary = models.CharField(max_length=7, blank=True, null=True) # hex color
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    learning_outcomes = models.TextField(blank=True, null=True)
+    benefits = models.TextField(blank=True, null=True)
+    hero_image = models.ImageField(upload_to='heroes/', blank=True, null=True)
 
     class Meta:
         ordering = ['display_order']

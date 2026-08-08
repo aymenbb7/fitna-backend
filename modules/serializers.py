@@ -14,7 +14,11 @@ class ModuleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Module
-        fields = ('id', 'name', 'slug', 'description', 'icon', 'background_theme', 'is_active', 'display_order', 'cover_image_url', 'color_primary', 'settings')
+        fields = (
+            'id', 'name', 'slug', 'description', 'icon', 'background_theme', 
+            'is_active', 'display_order', 'cover_image_url', 'color_primary', 
+            'learning_outcomes', 'benefits', 'hero_image', 'settings', 'price'
+        )
 
 class StudentListSerializer(serializers.ModelSerializer):
     enrolled_at = serializers.SerializerMethodField()
