@@ -70,6 +70,30 @@ class UploadMediaView(views.APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class CloudinaryConfigDebugView(views.APIView):
+    """Temporary debug endpoint: reveals first 6 chars of Cloudinary config to diagnose placeholder issues."""
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        if request.user.role != 'SUPER_ADMIN':
+            return Response({"error": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        import os
+        cn = settings.CLOUDINARY_STORAGE.get('CLOUD_NAME', '')
+        ak = settings.CLOUDINARY_STORAGE.get('API_KEY', '')
+        asec = settings.CLOUDINARY_STORAGE.get('API_SECRET', '')
+        # Also try os.environ directly
+        env_cn = os.environ.get('CLOUDINARY_CLOUD_NAME', 'NOT_SET')
+        env_ak = os.environ.get('CLOUDINARY_API_KEY', 'NOT_SET')
+        return Response({
+            'settings_cloud_name': cn[:10] + '...' if len(cn) > 10 else cn,
+            'settings_api_key_prefix': ak[:6] + '...' if len(ak) > 6 else ak,
+            'settings_api_secret_prefix': asec[:4] + '...' if len(asec) > 4 else asec,
+            'env_cloud_name': env_cn[:10] + '...' if len(env_cn) > 10 else env_cn,
+            'env_api_key_prefix': env_ak[:6] + '...' if len(env_ak) > 6 else env_ak,
+            'looks_like_placeholder': ak in ('test', 'your-api-key', '', 'NOT_SET'),
+        })
+
+
 class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'MODULE_ADMIN'])
