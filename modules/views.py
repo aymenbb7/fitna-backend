@@ -12,6 +12,8 @@ from quizzes.models import QuizAttempt
 from content.models import Lesson
 from content.serializers import TrialLessonSerializer
 
+User = get_user_model()
+
 class ModuleListView(generics.ListAPIView):
     serializer_class = ModuleSerializer
     permission_classes = (AllowAny,)
