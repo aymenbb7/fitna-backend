@@ -27,18 +27,22 @@ class ModuleListView(generics.ListAPIView):
 class ModuleDetailView(generics.RetrieveAPIView):
     queryset = Module.objects.filter(is_active=True)
     serializer_class = ModuleSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (AllowAny,)
     lookup_field = 'slug'
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPER_ADMIN':
+        # SUPER_ADMIN can see all modules (including inactive)
+        if user.is_authenticated and user.role == 'SUPER_ADMIN':
             return Module.objects.all()
-        elif user.role == 'MODULE_ADMIN':
-            return Module.objects.filter(id=getattr(user, 'managed_module', None).id if hasattr(user, 'managed_module') else None)
-        else:
-            # Student
-            return Module.objects.filter(enrollments__student=user, is_active=True)
+        # MODULE_ADMIN can see their own module
+        if user.is_authenticated and user.role == 'MODULE_ADMIN':
+            try:
+                return Module.objects.filter(id=user.managed_module.id)
+            except Exception:
+                pass
+        # Public users and students: all active modules
+        return Module.objects.filter(is_active=True)
 
 class ModuleDashboardView(views.APIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
