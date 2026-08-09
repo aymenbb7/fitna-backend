@@ -23,13 +23,26 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ('id', 'text', 'question_type', 'points', 'display_order', 'explanation', 'choices')
 
 
+
+
+
+
 class AdminQuestionSerializer(serializers.ModelSerializer):
-    """Admin serializer that exposes is_correct on choices."""
-    choices = AdminAnswerChoiceSerializer(many=True, read_only=True)
+    """Admin serializer that supports nested creation and exposes is_correct on choices."""
+    choices = AdminAnswerChoiceSerializer(many=True, required=False)
 
     class Meta:
         model = Question
         fields = ('id', 'text', 'question_type', 'points', 'display_order', 'explanation', 'choices')
+
+    def create(self, validated_data):
+        choices_data = validated_data.pop('choices', [])
+        question = Question.objects.create(**validated_data)
+        for i, choice_data in enumerate(choices_data):
+            # Ensure display_order is set
+            choice_data.setdefault('display_order', i)
+            AnswerChoice.objects.create(question=question, **choice_data)
+        return question
 
 
 class QuizSerializer(serializers.ModelSerializer):

@@ -86,7 +86,7 @@ class IsContentReaderOrAdmin(permissions.BasePermission):
 
 class SectionListCreateView(generics.ListCreateAPIView):
     serializer_class = SectionSerializer
-    permission_classes = (IsModuleAdminOrSuperAdmin,)
+    permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
         slug = self.kwargs.get('slug')
@@ -108,7 +108,7 @@ class SectionListCreateView(generics.ListCreateAPIView):
 
 class SectionDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SectionSerializer
-    permission_classes = (IsModuleAdminOrSuperAdmin,)
+    permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
         slug = self.kwargs.get('slug')
@@ -125,7 +125,7 @@ class SectionDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class LessonListCreateView(generics.ListCreateAPIView):
     serializer_class = LessonSerializer
-    permission_classes = (IsModuleAdminOrSuperAdmin,)
+    permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
         slug = self.kwargs.get('slug')
@@ -143,7 +143,7 @@ class LessonListCreateView(generics.ListCreateAPIView):
 
 class LessonDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = LessonSerializer
-    permission_classes = (IsModuleAdminOrSuperAdmin,)
+    permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
         slug = self.kwargs.get('slug')

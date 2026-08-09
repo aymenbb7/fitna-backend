@@ -124,3 +124,83 @@ class SectionSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('module',)
 
+
+# ─── Trial / Free Preview serializers ────────────────────────────────────────
+
+class TrialAnswerChoiceSerializer(serializers.ModelSerializer):
+    """Exposes answer choices WITHOUT revealing which is correct."""
+    class Meta:
+        from quizzes.models import AnswerChoice
+        model = AnswerChoice
+        fields = ('id', 'text', 'display_order')
+
+
+class TrialQuestionSerializer(serializers.ModelSerializer):
+    """Serializer for questions in the free trial — hides correct answers."""
+    choices = TrialAnswerChoiceSerializer(many=True, read_only=True)
+
+    class Meta:
+        from quizzes.models import Question
+        model = Question
+        fields = ('id', 'text', 'question_type', 'points', 'display_order', 'choices')
+
+
+class TrialQuizSerializer(serializers.ModelSerializer):
+    """Active quiz with questions/choices for the trial page."""
+    questions = TrialQuestionSerializer(many=True, read_only=True)
+    questions_count = serializers.SerializerMethodField()
+
+    class Meta:
+        from quizzes.models import Quiz
+        model = Quiz
+        fields = ('id', 'title', 'description', 'time_limit_minutes', 'passing_score',
+                  'show_results_immediately', 'questions', 'questions_count')
+
+    def get_questions_count(self, obj):
+        return obj.questions.count()
+
+
+class TrialLessonSerializer(serializers.ModelSerializer):
+    """
+    Full lesson serializer for the free-trial endpoint.
+    Includes all media AND active quizzes attached to this lesson.
+    Only active content is included.
+    """
+    documents = serializers.SerializerMethodField()
+    videos = serializers.SerializerMethodField()
+    voice_messages = serializers.SerializerMethodField()
+    photos = serializers.SerializerMethodField()
+    sessions = serializers.SerializerMethodField()
+    quizzes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lesson
+        fields = ('id', 'title', 'description', 'display_order',
+                  'documents', 'videos', 'voice_messages', 'photos',
+                  'sessions', 'quizzes')
+
+    def get_documents(self, obj):
+        qs = obj.documents.filter(is_active=True)
+        return DocumentSerializer(qs, many=True).data
+
+    def get_videos(self, obj):
+        qs = obj.videos.filter(is_active=True)
+        return VideoSerializer(qs, many=True).data
+
+    def get_voice_messages(self, obj):
+        qs = obj.voice_messages.filter(is_active=True)
+        return VoiceMessageSerializer(qs, many=True).data
+
+    def get_photos(self, obj):
+        qs = obj.photos.filter(is_active=True)
+        return PhotoSerializer(qs, many=True).data
+
+    def get_sessions(self, obj):
+        qs = obj.sessions.filter(is_active=True)
+        return SessionSerializer(qs, many=True).data
+
+    def get_quizzes(self, obj):
+        from quizzes.models import Quiz
+        qs = Quiz.objects.filter(lesson=obj, is_active=True)
+        return TrialQuizSerializer(qs, many=True).data
+

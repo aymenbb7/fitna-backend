@@ -4,16 +4,13 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Avg, Max, Min
-
 from .models import Module, ModuleSettings, Enrollment
 from .serializers import ModuleSerializer, StudentListSerializer, ModuleSettingsSerializer
 from core.permissions import IsModuleOwner, IsSuperAdmin
 from users.models import Notification
 from quizzes.models import QuizAttempt
 from content.models import Lesson
-from content.serializers import LessonSerializer
-
-User = get_user_model()
+from content.serializers import TrialLessonSerializer
 
 class ModuleListView(generics.ListAPIView):
     serializer_class = ModuleSerializer
@@ -199,5 +196,6 @@ class ModuleTrialView(views.APIView):
     def get(self, request, slug):
         module = get_object_or_404(Module, slug=slug)
         lessons = Lesson.objects.filter(section__module=module, is_preview=True, is_active=True).order_by('section__display_order', 'display_order')
-        serializer = LessonSerializer(lessons, many=True)
+        serializer = TrialLessonSerializer(lessons, many=True)
         return Response(serializer.data)
+
