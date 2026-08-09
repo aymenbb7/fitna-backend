@@ -28,8 +28,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'cloudinary',
-    'cloudinary_storage',
+    'storages',
 
     # Local apps
     'users',
@@ -131,10 +130,22 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',') if config('CORS_ALLOWED_ORIGINS', default='') else []
 
-# Cloudinary
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default='test'),
-    'API_KEY': config('CLOUDINARY_API_KEY', default='test'),
-    'API_SECRET': config('CLOUDINARY_API_SECRET', default='test'),
+# Cloudflare R2 / S3 Storage Config
+AWS_ACCESS_KEY_ID = config('CLOUDFLARE_R2_ACCESS_KEY_ID', default='test-key')
+AWS_SECRET_ACCESS_KEY = config('CLOUDFLARE_R2_SECRET_ACCESS_KEY', default='test-secret')
+AWS_STORAGE_BUCKET_NAME = config('CLOUDFLARE_R2_BUCKET_NAME', default='fitna-media')
+AWS_S3_ENDPOINT_URL = config('CLOUDFLARE_R2_ENDPOINT', default='https://527f8c25ed3eea91eb9aa606f3669a8d.r2.cloudflarestorage.com')
+AWS_S3_REGION_NAME = 'auto'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = True
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
 }
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

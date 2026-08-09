@@ -1,5 +1,3 @@
-from rest_framework import permissions
-import cloudinary.uploader
 from rest_framework import views, status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -29,38 +27,20 @@ class UploadMediaView(views.APIView):
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            import cloudinary
-            import cloudinary.uploader
+            from django.core.files.storage import default_storage
+            import os
+            import uuid
 
-            # Configure cloudinary with credentials from Django settings
-            cloudinary.config(
-                cloud_name=settings.CLOUDINARY_STORAGE.get('CLOUD_NAME'),
-                api_key=settings.CLOUDINARY_STORAGE.get('API_KEY'),
-                api_secret=settings.CLOUDINARY_STORAGE.get('API_SECRET'),
-                secure=True,
-            )
+            # Generate unique filename to avoid overwrites and issues with special characters
+            ext = os.path.splitext(file_obj.name)[1]
+            unique_name = f"fitna_uploads/{uuid.uuid4()}{ext}"
 
-            if not settings.CLOUDINARY_STORAGE.get('CLOUD_NAME'):
-                return Response({"error": "Cloudinary not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Save the file using default storage (Cloudflare R2 in production)
+            saved_path = default_storage.save(unique_name, file_obj)
+            
+            # Retrieve the public/secure URL
+            secure_url = default_storage.url(saved_path)
 
-            # Determine resource type from MIME
-            content_type = file_obj.content_type or ''
-            if content_type.startswith('image/'):
-                resource_type = 'image'
-            elif content_type.startswith('video/') or content_type.startswith('audio/'):
-                resource_type = 'video'
-            else:
-                resource_type = 'raw'
-
-            result = cloudinary.uploader.upload(
-                file_obj,
-                resource_type=resource_type,
-                folder='fitna_uploads',
-                use_filename=True,
-                unique_filename=True,
-            )
-
-            secure_url = result.get('secure_url')
             if secure_url:
                 return Response({"url": secure_url})
             else:
@@ -70,27 +50,29 @@ class UploadMediaView(views.APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class CloudinaryConfigDebugView(views.APIView):
-    """Temporary debug endpoint: reveals first 6 chars of Cloudinary config to diagnose placeholder issues."""
+class StorageConfigDebugView(views.APIView):
+    """Temporary debug endpoint: reveals basic R2 config status to verify setup without leaking keys."""
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
         if request.user.role != 'SUPER_ADMIN':
             return Response({"error": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
-        import os
-        cn = settings.CLOUDINARY_STORAGE.get('CLOUD_NAME', '')
-        ak = settings.CLOUDINARY_STORAGE.get('API_KEY', '')
-        asec = settings.CLOUDINARY_STORAGE.get('API_SECRET', '')
-        # Also try os.environ directly
-        env_cn = os.environ.get('CLOUDINARY_CLOUD_NAME', 'NOT_SET')
-        env_ak = os.environ.get('CLOUDINARY_API_KEY', 'NOT_SET')
+        
+        has_bucket = bool(settings.AWS_STORAGE_BUCKET_NAME)
+        has_endpoint = bool(settings.AWS_S3_ENDPOINT_URL)
+        has_access_key = bool(settings.AWS_ACCESS_KEY_ID)
+        has_secret = bool(settings.AWS_SECRET_ACCESS_KEY)
+
+        endpoint = settings.AWS_S3_ENDPOINT_URL or ""
+        endpoint_masked = endpoint[:15] + "..." if len(endpoint) > 15 else endpoint
+
         return Response({
-            'settings_cloud_name': cn[:10] + '...' if len(cn) > 10 else cn,
-            'settings_api_key_prefix': ak[:6] + '...' if len(ak) > 6 else ak,
-            'settings_api_secret_prefix': asec[:4] + '...' if len(asec) > 4 else asec,
-            'env_cloud_name': env_cn[:10] + '...' if len(env_cn) > 10 else env_cn,
-            'env_api_key_prefix': env_ak[:6] + '...' if len(env_ak) > 6 else env_ak,
-            'looks_like_placeholder': ak in ('test', 'your-api-key', '', 'NOT_SET'),
+            'bucket_configured': has_bucket,
+            'endpoint_configured': has_endpoint,
+            'access_key_configured': has_access_key,
+            'secret_configured': has_secret,
+            'endpoint_masked': endpoint_masked,
+            'storage_backend': settings.STORAGES['default']['BACKEND'] if hasattr(settings, 'STORAGES') else 'unknown',
         })
 
 

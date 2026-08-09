@@ -28,8 +28,7 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS[:]
 # Parse database configuration from $DATABASE_URL
 DATABASES['default'] = dj_database_url.config(conn_max_age=600, ssl_require=True)
 
-# Whitenoise compression and caching
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -42,10 +41,22 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-# Cloudinary storage for media files in production
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': config('CLOUDINARY_API_KEY'),
-    'API_SECRET': config('CLOUDINARY_API_SECRET'),
+# Cloudflare R2 / S3 Storage Config
+AWS_ACCESS_KEY_ID = config('CLOUDFLARE_R2_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = config('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = config('CLOUDFLARE_R2_BUCKET_NAME')
+AWS_S3_ENDPOINT_URL = config('CLOUDFLARE_R2_ENDPOINT')
+AWS_S3_REGION_NAME = 'auto'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = True
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
 }
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
