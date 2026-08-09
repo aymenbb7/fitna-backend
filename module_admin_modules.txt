@@ -1,0 +1,10 @@
+=== MODULES VISIBLE TO ADMIN (USER: Admin قسم الذاكرة) ===
+Count: 1
+
+ID:2 Slug:memory Name:قسم الذاكرة Admin:Admin قسم الذاكرة Students:2 Price:0.0
+
+=== CREATE-BY-ADMIN RESULT ===
+Status: 201 OK
+Student ID: 30
+Email: module_admin_test_1786128518@test.com
+Enrolled: ['memory']

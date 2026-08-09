@@ -1,0 +1,84 @@
+=== MODULE ADMINS ===
+ID: 3, Email: admin_quran@fitna.dz, Name: Quran Admin
+ID: 26, Email: amine@gmail.com, Name: amine
+ID: 29, Email: islem@gmail.com, Name: islem
+ID: 30, Email: islembabo@gmail.com, Name: islem
+ID: 34, Email: jalilo@gmail.com, Name: jalil
+ID: 38, Email: halimo@gmail.com, Name: ohalim
+ID: 39, Email: aymenbnj@gmail.com, Name: aymen bounehijda
+ID: 40, Email: admin_soroban@fitna.dz, Name: 
+ID: 41, Email: admin_memory@fitna.dz, Name: 
+ID: 42, Email: admin_problem-solving@fitna.dz, Name: 
+ID: 43, Email: admin_health@fitna.dz, Name: 
+ID: 44, Email: admin_history@fitna.dz, Name: 
+ID: 45, Email: admin_languages@fitna.dz, Name: 
+ID: 46, Email: admin_talents@fitna.dz, Name: 
+ID: 47, Email: admin_psychology@fitna.dz, Name: 
+=== MODULES ===
+ID: 10, Slug: سوروبان, Name: سوروبان Test Test Test Form, Admin ID: 40
+ID: 1, Slug: quran, Name: قسم التعليم القرآني, Admin ID: 3
+ID: 2, Slug: memory, Name: قسم الذاكرة, Admin ID: 41
+ID: 4, Slug: problem-solving, Name: قسم التدريب على حل الإشكال, Admin ID: 42
+ID: 5, Slug: health, Name: قسم العادات الصحية, Admin ID: 43
+ID: 6, Slug: history, Name: قسم التاريخ, Admin ID: 44
+ID: 7, Slug: languages, Name: قسم اللغات, Admin ID: 45
+ID: 8, Slug: talents, Name: قسم المواهب, Admin ID: 46
+ID: 9, Slug: psychology, Name: قسم المتابعة النفسية, Admin ID: 47
+=== ALL USERS WITH ADMIN IN EMAIL OR FULL NAME ===
+ID: 3, Email: admin_quran@fitna.dz, Name: Quran Admin, Role: MODULE_ADMIN, Username: None
+ID: 26, Email: amine@gmail.com, Name: amine, Role: MODULE_ADMIN, Username: amine@gmail.com
+ID: 29, Email: islem@gmail.com, Name: islem, Role: MODULE_ADMIN, Username: islembabo
+ID: 30, Email: islembabo@gmail.com, Name: islem, Role: MODULE_ADMIN, Username: islemo
+ID: 34, Email: jalilo@gmail.com, Name: jalil, Role: MODULE_ADMIN, Username: jalilo@gmail.com
+ID: 38, Email: halimo@gmail.com, Name: ohalim, Role: MODULE_ADMIN, Username: halimo
+ID: 39, Email: aymenbnj@gmail.com, Name: aymen bounehijda, Role: MODULE_ADMIN, Username: aymenbnj
+ID: 40, Email: admin_soroban@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_soroban
+ID: 41, Email: admin_memory@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_memory
+ID: 42, Email: admin_problem-solving@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_problem-solving
+ID: 43, Email: admin_health@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_health
+ID: 44, Email: admin_history@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_history
+ID: 45, Email: admin_languages@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_languages
+ID: 46, Email: admin_talents@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_talents
+ID: 47, Email: admin_psychology@fitna.dz, Name: , Role: MODULE_ADMIN, Username: admin_psychology
+=== ALL USERS IN DB ===
+ID: 1, Email: admin@fitna.dz, Name: Super Admin, Role: SUPER_ADMIN
+ID: 2, Email: student@test.com, Name: Test Student, Role: STUDENT
+ID: 3, Email: admin_quran@fitna.dz, Name: Quran Admin, Role: MODULE_ADMIN
+ID: 17, Email: student_test_notifs@fitna.dz, Name: Test Notif Student, Role: STUDENT
+ID: 19, Email: s3@fitna.dz, Name: Student 3, Role: STUDENT
+ID: 20, Email: aymenbounehidja047@gmail.com, Name: Aymen Bounehidja, Role: SUPER_ADMIN
+ID: 21, Email: superadmin@fitna.dz, Name: Super Admin, Role: SUPER_ADMIN
+ID: 24, Email: aymenbounehidja@gmail.com, Name: aymen, Role: STUDENT
+ID: 25, Email: test_stud@test.com, Name: , Role: STUDENT
+ID: 26, Email: amine@gmail.com, Name: amine, Role: MODULE_ADMIN
+ID: 27, Email: hamid@gmaill.com, Name: hamid, Role: STUDENT
+ID: 28, Email: hamid@gmail.com, Name: hamid, Role: STUDENT
+ID: 29, Email: islem@gmail.com, Name: islem, Role: MODULE_ADMIN
+ID: 30, Email: islembabo@gmail.com, Name: islem, Role: MODULE_ADMIN
+ID: 31, Email: new_multi@test.com, Name: Multi Module Student, Role: STUDENT
+ID: 32, Email: new_multi3@test.com, Name: Multi Module Student, Role: STUDENT
+ID: 33, Email: jalil@gmail.com, Name: aissa, Role: STUDENT
+ID: 34, Email: jalilo@gmail.com, Name: jalil, Role: MODULE_ADMIN
+ID: 35, Email: halim@gmail.com, Name: halim, Role: STUDENT
+ID: 36, Email: su2@test.com, Name: , Role: SUPER_ADMIN
+ID: 37, Email: achouak@gmail.com, Name: achouak, Role: STUDENT
+ID: 38, Email: halimo@gmail.com, Name: ohalim, Role: MODULE_ADMIN
+ID: 39, Email: aymenbnj@gmail.com, Name: aymen bounehijda, Role: MODULE_ADMIN
+ID: 40, Email: admin_soroban@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 41, Email: admin_memory@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 42, Email: admin_problem-solving@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 43, Email: admin_health@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 44, Email: admin_history@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 45, Email: admin_languages@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 46, Email: admin_talents@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 47, Email: admin_psychology@fitna.dz, Name: , Role: MODULE_ADMIN
+ID: 50, Email: aminebounehidja@gmail.com, Name: aymen bounehidja, Role: STUDENT
+ID: 51, Email: new_student_e2e@test.com, Name: TestStudent One, Role: STUDENT
+ID: 52, Email: quran_student_test@test.com, Name: TestQuran Student, Role: STUDENT
+ID: 53, Email: random_student_5220@example.com, Name: Test Student, Role: STUDENT
+ID: 54, Email: admin@oldmoneyalgeria.dz, Name: aymen boudja, Role: STUDENT
+ID: 55, Email: registered_test_student@example.com, Name: Test Student, Role: STUDENT
+ID: 56, Email: test_38d87f@test.com, Name: Test Student, Role: STUDENT
+ID: 57, Email: test_543a34@test.com, Name: Test Student, Role: STUDENT
+ID: 58, Email: new_student@test.com, Name: Test Student Updated, Role: STUDENT
+=== USERS WITH  ===

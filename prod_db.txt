@@ -1,0 +1,42 @@
+=== PRODUCTION MODULE_ADMIN USERS ===
+ID: 10, Email: oumniaaa.ben@gmail.com, Name: Admin قسم المتابعة النفسية, Role: MODULE_ADMIN
+ID: 9, Email: admin_talents@fitna.dz, Name: Admin قسم المواهب, Role: MODULE_ADMIN
+ID: 8, Email: alaadamouche14@gmail.com, Name: Admin قسم اللغات, Role: MODULE_ADMIN
+ID: 7, Email: melissamezimeche@gmail.com, Name: Admin قسم التاريخ, Role: MODULE_ADMIN
+ID: 6, Email: admin_health@fitna.dz, Name: Admin قسم العادات الصحية, Role: MODULE_ADMIN
+ID: 5, Email: admin_problem-solving@fitna.dz, Name: Admin قسم المكعبات السحرية, Role: MODULE_ADMIN
+ID: 4, Email: gasmi7312@gmail.com, Name: Admin قسم السوروبان, Role: MODULE_ADMIN
+ID: 3, Email: abderrahimsakeur@gmail.com, Name: Admin قسم الذاكرة, Role: MODULE_ADMIN
+ID: 2, Email: Hidaya_quran@fitna.dz, Name: Admin قسم التعليم القرآني, Role: MODULE_ADMIN
+
+=== PRODUCTION MODULES ===
+ID: 4, Slug: problem-solving, Name: قسم التدريب على حل الإشكال, Admin: Admin قسم المكعبات السحرية
+ID: 9, Slug: psychology, Name: قسم المتابعة النفسية, Admin: None
+ID: 7, Slug: languages, Name: قسم اللغات, Admin: None
+ID: 6, Slug: history, Name: قسم التاريخ, Admin: None
+ID: 3, Slug: soroban, Name: قسم السوروبان, Admin: None
+ID: 1, Slug: quran, Name: قسم التعليم القرآني, Admin: None
+ID: 5, Slug: health, Name: قسم العادات الصحية, Admin: None
+ID: 2, Slug: memory, Name: قسم الذاكرة, Admin: None
+ID: 8, Slug: talents, Name: قسم المواهب, Admin: None
+
+=== ALL USERS ===
+ID: 28, Email: bnjj@gmail.com, Name: Aymen, Role: STUDENT
+ID: 27, Email: bnj@gmail.com, Name: aymen, Role: STUDENT
+ID: 26, Email: Aymen@gmail.com, Name: aymen, Role: STUDENT
+ID: 25, Email: franceuro24@gmail.com, Name: يوسف بلكيحل, Role: STUDENT
+ID: 24, Email: nourbj880@gmail.com, Name: نور الهدى بوحجة, Role: STUDENT
+ID: 23, Email: Benarbiajalil0@gmail.com, Name: عبد الجليل بن عربية, Role: STUDENT
+ID: 22, Email: Aminenerier444@gmail.com, Name: محمد أمين نغير, Role: STUDENT
+ID: 21, Email: hidayabou30@gmail.com, Name: جنان الرحمن بوثلجة, Role: STUDENT
+ID: 20, Email: aymen@gmail.com, Name: Aymen bnj, Role: STUDENT
+ID: 10, Email: oumniaaa.ben@gmail.com, Name: Admin قسم المتابعة النفسية, Role: MODULE_ADMIN
+ID: 9, Email: admin_talents@fitna.dz, Name: Admin قسم المواهب, Role: MODULE_ADMIN
+ID: 8, Email: alaadamouche14@gmail.com, Name: Admin قسم اللغات, Role: MODULE_ADMIN
+ID: 7, Email: melissamezimeche@gmail.com, Name: Admin قسم التاريخ, Role: MODULE_ADMIN
+ID: 6, Email: admin_health@fitna.dz, Name: Admin قسم العادات الصحية, Role: MODULE_ADMIN
+ID: 5, Email: admin_problem-solving@fitna.dz, Name: Admin قسم المكعبات السحرية, Role: MODULE_ADMIN
+ID: 4, Email: gasmi7312@gmail.com, Name: Admin قسم السوروبان, Role: MODULE_ADMIN
+ID: 3, Email: abderrahimsakeur@gmail.com, Name: Admin قسم الذاكرة, Role: MODULE_ADMIN
+ID: 2, Email: Hidaya_quran@fitna.dz, Name: Admin قسم التعليم القرآني, Role: MODULE_ADMIN
+ID: 1, Email: superadmin@fitna.dz, Name: Super Admin, Role: SUPER_ADMIN

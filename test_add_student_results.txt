@@ -1,0 +1,32 @@
+=== Logged in as memory admin ===
+Email: abderrahimsakeur@gmail.com
+Role: MODULE_ADMIN
+Name: Admin قسم الذاكرة
+
+=== Creating test student via /admin/students/create/ ===
+Email: verify_student_1786289006@test.com
+Module: memory
+
+CREATE STATUS: 201 OK
+Student ID: 33
+Full response: {"message": "تم إنشاء حساب الطالب بنجاح", "student": {"id": 33, "email": "verify_student_1786289006@test.com", "full_name": "Test Verify Student", "role": "STUDENT", "is_approved": true, "is_active": true, "profile_picture": null, "phone_number": "0555000000", "age": null, "enrolled_modules": [{"slug": "memory", "name": "قسم الذاكرة", "icon": "🧠", "color_primary": "#1565C0"}], "unread_notifications_count": 0, "total_spent": 0.0, "purchase_history": [{"id": 9, "module": "قسم الذاكرة", "amount": 0
+
+=== ENROLLMENT VERIFICATION ===
+Enrollment count: 1
+  Module: قسم الذاكرة | Slug: None | Primary: None
+
+=== STUDENT IN USERS LIST ===
+Found: 1 user(s) matching email
+  ID: 33, Role: STUDENT, Active: True, Approved: True
+  Enrolled modules: ['memory']
+
+=== MODULE STUDENT COUNTS AFTER CREATION ===
+  Slug: problem-solving | Students: 1 | Admin: Admin قسم المكعبات السحرية
+  Slug: psychology | Students: 1 | Admin: Admin قسم المتابعة النفسية
+  Slug: languages | Students: 0 | Admin: Admin قسم اللغات
+  Slug: history | Students: 0 | Admin: Admin قسم التاريخ
+  Slug: soroban | Students: 0 | Admin: Admin قسم السوروبان
+  Slug: quran | Students: 0 | Admin: Admin قسم التعليم القرآني
+  Slug: health | Students: 0 | Admin: Admin قسم العادات الصحية
+  Slug: memory | Students: 6 | Admin: Admin قسم الذاكرة
+  Slug: talents | Students: 1 | Admin: Admin قسم المواهب

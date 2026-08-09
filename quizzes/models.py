@@ -1,9 +1,11 @@
 from django.db import models
 from django.conf import settings
 from modules.models import Module
+from content.models import Lesson
 
 class Quiz(models.Model):
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='quizzes')
+    lesson = models.ForeignKey(Lesson, on_delete=models.SET_NULL, null=True, blank=True, related_name='quizzes')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     time_limit_minutes = models.IntegerField(default=0) # 0 = no limit

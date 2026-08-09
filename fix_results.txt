@@ -1,0 +1,21 @@
+=== ASSIGNMENT RESULTS ===
+slug=quran user_id=2 status=OK resp={'message': 'Assigned Admin قسم التعليم القرآني as admin for قسم التعليم القرآني'}
+slug=memory user_id=3 status=OK resp={'message': 'Assigned Admin قسم الذاكرة as admin for قسم الذاكرة'}
+slug=soroban user_id=4 status=OK resp={'message': 'Assigned Admin قسم السوروبان as admin for قسم السوروبان'}
+slug=problem-solving user_id=5 status=OK resp={'message': 'Assigned Admin قسم المكعبات السحرية as admin for قسم التدريب على حل الإشكال'}
+slug=health user_id=6 status=OK resp={'message': 'Assigned Admin قسم العادات الصحية as admin for قسم العادات الصحية'}
+slug=history user_id=7 status=OK resp={'message': 'Assigned Admin قسم التاريخ as admin for قسم التاريخ'}
+slug=languages user_id=8 status=OK resp={'message': 'Assigned Admin قسم اللغات as admin for قسم اللغات'}
+slug=talents user_id=9 status=OK resp={'message': 'Assigned Admin قسم المواهب as admin for قسم المواهب'}
+slug=psychology user_id=10 status=OK resp={'message': 'Assigned Admin قسم المتابعة النفسية as admin for قسم المتابعة النفسية'}
+
+=== MODULES AFTER FIX ===
+ID:4 Slug:problem-solving Admin:Admin قسم المكعبات السحرية Students:1
+ID:9 Slug:psychology Admin:Admin قسم المتابعة النفسية Students:1
+ID:7 Slug:languages Admin:Admin قسم اللغات Students:0
+ID:6 Slug:history Admin:Admin قسم التاريخ Students:0
+ID:3 Slug:soroban Admin:Admin قسم السوروبان Students:0
+ID:1 Slug:quran Admin:Admin قسم التعليم القرآني Students:0
+ID:5 Slug:health Admin:Admin قسم العادات الصحية Students:0
+ID:2 Slug:memory Admin:Admin قسم الذاكرة Students:1
+ID:8 Slug:talents Admin:Admin قسم المواهب Students:0

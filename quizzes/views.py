@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from .models import Quiz, Question, AnswerChoice, QuizAttempt, StudentAnswer
-from .serializers import QuizSerializer, QuestionSerializer, QuizAttemptSerializer, AnswerChoiceSerializer
+from .serializers import QuizSerializer, QuestionSerializer, AdminQuestionSerializer, QuizAttemptSerializer, AnswerChoiceSerializer, AdminAnswerChoiceSerializer
 from modules.models import Module
 from content.views import IsContentReaderOrAdmin
 from core.permissions import IsModuleOwner, IsSuperAdmin
@@ -21,6 +21,10 @@ class QuizViewSet(viewsets.ModelViewSet):
         slug = self.kwargs.get('slug')
         module = get_object_or_404(Module, slug=slug)
         qs = Quiz.objects.filter(module=module)
+        # Filter by lesson if provided
+        lesson_id = self.request.query_params.get('lesson')
+        if lesson_id:
+            qs = qs.filter(lesson_id=lesson_id)
         if self.request.user.role == 'STUDENT':
             qs = qs.filter(is_active=True)
         return qs
@@ -28,7 +32,15 @@ class QuizViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         slug = self.kwargs.get('slug')
         module = get_object_or_404(Module, slug=slug)
-        quiz = serializer.save(module=module)
+        lesson_id = self.request.data.get('lesson')
+        lesson = None
+        if lesson_id:
+            from content.models import Lesson
+            try:
+                lesson = Lesson.objects.get(pk=lesson_id)
+            except Lesson.DoesNotExist:
+                pass
+        quiz = serializer.save(module=module, lesson=lesson)
         
         if quiz.is_active:
             self._notify_students(module, quiz)
@@ -53,7 +65,7 @@ class QuizViewSet(viewsets.ModelViewSet):
         Notification.objects.bulk_create(notifications)
 
 class QuestionViewSet(viewsets.ModelViewSet):
-    serializer_class = QuestionSerializer
+    serializer_class = AdminQuestionSerializer
     permission_classes = (IsModuleOwner | IsSuperAdmin,)
 
     def get_queryset(self):
