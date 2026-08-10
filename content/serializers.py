@@ -110,10 +110,16 @@ class LessonSerializer(serializers.ModelSerializer):
     voice_messages = VoiceMessageSerializer(many=True, read_only=True)
     photos = PhotoSerializer(many=True, read_only=True)
     sessions = SessionSerializer(many=True, read_only=True)
+    quizzes = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
         fields = '__all__'
+
+    def get_quizzes(self, obj):
+        from quizzes.models import Quiz
+        qs = Quiz.objects.filter(lesson=obj, is_active=True)
+        return TrialQuizSerializer(qs, many=True).data
 
 
 class SectionSerializer(serializers.ModelSerializer):
