@@ -179,7 +179,14 @@ class BaseContentViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Lesson does not belong to this module.")
 
-        obj = serializer.save()
+        # Defense-in-depth: new media is always active by default.
+        # The admin can explicitly deactivate it afterwards via PATCH.
+        # This prevents a missing/false is_active in FormData from creating inactive media.
+        save_kwargs = {}
+        if 'is_active' not in self.request.data:
+            save_kwargs['is_active'] = True
+
+        obj = serializer.save(**save_kwargs)
 
         # Notify enrolled students of new content
         try:
