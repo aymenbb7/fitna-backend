@@ -829,3 +829,21 @@ class SuperAdminModuleStatsView(views.APIView):
             'average_revenue': average_revenue,
             'latest_payments': latest_payments_data
         })
+
+ i m p o r t   i o 
+ f r o m   d j a n g o . c o r e . m a n a g e m e n t   i m p o r t   c a l l _ c o m m a n d 
+ f r o m   r e s t _ f r a m e w o r k   i m p o r t   v i e w s 
+ f r o m   r e s t _ f r a m e w o r k . r e s p o n s e   i m p o r t   R e s p o n s e 
+ 
+ c l a s s   R e p a i r M e d i a V i e w ( v i e w s . A P I V i e w ) : 
+         p e r m i s s i o n _ c l a s s e s   =   [ ] 
+         d e f   g e t ( s e l f ,   r e q u e s t ) : 
+                 d r y _ r u n   =   r e q u e s t . q u e r y _ p a r a m s . g e t ( ' d r y _ r u n ' ,   ' f a l s e ' ) . l o w e r ( )   = =   ' t r u e ' 
+                 o u t   =   i o . S t r i n g I O ( ) 
+                 i f   d r y _ r u n : 
+                         c a l l _ c o m m a n d ( ' a c t i v a t e _ a l l _ m e d i a ' ,   ' - - d r y - r u n ' ,   s t d o u t = o u t ,   s t d e r r = o u t ) 
+                 e l s e : 
+                         c a l l _ c o m m a n d ( ' a c t i v a t e _ a l l _ m e d i a ' ,   s t d o u t = o u t ,   s t d e r r = o u t ) 
+                 r e t u r n   R e s p o n s e ( { ' o u t p u t ' :   o u t . g e t v a l u e ( ) } ) 
+  
+ 

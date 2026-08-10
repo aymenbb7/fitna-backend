@@ -6,12 +6,14 @@ from .views import (
     StudentPaymentsView, UsersExportView, SiteSettingsView, PublicSiteSettingsView,
     SuperAdminUserUpdateView, SuperAdminUserStatusView, SuperAdminUserResetPasswordView,
     SuperAdminCreateModuleAdminView, SuperAdminModuleUpdateView,
-    SuperAdminModuleStatsView, SuperAdminUserDeleteView, ModuleAdminCreateStudentView
+    SuperAdminModuleStatsView, SuperAdminUserDeleteView, ModuleAdminCreateStudentView,
+    RepairMediaView
 )
 from .revenue_views import RevenueStatsView, RevenueExportView
 from .notification_views import BroadcastNotificationView, NotificationHistoryView, NotificationDeleteView
 
 urlpatterns = [
+    path('repair-media/', RepairMediaView.as_view(), name='repair_media'),
     path('site-settings/', SiteSettingsView.as_view(), name='site_settings'),
     path('stats/', SuperAdminStatsView.as_view(), name='superadmin_stats'),
     
