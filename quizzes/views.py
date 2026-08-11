@@ -75,6 +75,95 @@ class QuestionViewSet(viewsets.ModelViewSet):
         quiz = get_object_or_404(Quiz, pk=self.kwargs.get('quiz_pk'))
         serializer.save(quiz=quiz)
 
+class AnswerChoiceViewSet(viewsets.ModelViewSet):
+    serializer_class = AdminAnswerChoiceSerializer
+    permission_classes = (IsModuleOwner | IsSuperAdmin,)
+
+    def get_queryset(self):
+        return AnswerChoice.objects.filter(question_id=self.kwargs.get('question_pk'))
+
+    def perform_create(self, serializer):
+        question = get_object_or_404(Question, pk=self.kwargs.get('question_pk'))
+        serializer.save(question=question)
+
+class PublicStartQuizAttemptView(views.APIView):
+    permission_classes = (permissions.AllowAny,)
+
+    def get(self, request, slug, pk):
+        quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug, is_active=True)
+        # Ensure it belongs to a trial lesson
+        if not quiz.lesson or not quiz.lesson.is_preview:
+            return Response({"error": "Quiz is not available for public trial."}, status=status.HTTP_403_FORBIDDEN)
+            
+        serializer = QuizSerializer(quiz)
+        data = serializer.data
+        for q in data['questions']:
+            for c in q['choices']:
+                c.pop('is_correct', None)
+                
+        return Response({
+            "quiz": data
+        })
+
+class PublicSubmitQuizAttemptView(views.APIView):
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, slug, pk):
+        quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug, is_active=True)
+        if not quiz.lesson or not quiz.lesson.is_preview:
+            return Response({"error": "Quiz is not available for public trial."}, status=status.HTTP_403_FORBIDDEN)
+            
+        answers_data = request.data.get('answers', [])
+        
+        total_points_possible = sum([q.points for q in quiz.questions.all()])
+        total_points_earned = 0
+        
+        results = []
+        
+        for answer in answers_data:
+            question_id = answer.get('question_id')
+            choice_ids = answer.get('choice_ids', [])
+            
+            try:
+                question = Question.objects.get(id=question_id, quiz=quiz)
+            except Question.DoesNotExist:
+                continue
+                
+            correct_choices = set(question.choices.filter(is_correct=True).values_list('id', flat=True))
+            selected_choices = set(choice_ids)
+            
+            is_correct = False
+            points_earned = 0
+            
+            if question.question_type == 'MCQ' or question.question_type == 'TRUE_FALSE':
+                if len(selected_choices) == 1 and selected_choices == correct_choices:
+                    is_correct = True
+            elif question.question_type == 'MULTI':
+                if selected_choices == correct_choices:
+                    is_correct = True
+                    
+            if is_correct:
+                points_earned = question.points
+                total_points_earned += points_earned
+                
+            results.append({
+                "question_id": question.id,
+                "is_correct": is_correct,
+                "points_earned": points_earned,
+                "explanation": question.explanation if quiz.show_results_immediately else ""
+            })
+            
+        score = (total_points_earned / total_points_possible * 100) if total_points_possible > 0 else 0
+        passed = score >= quiz.passing_score
+        
+        return Response({
+            "score_percentage": score,
+            "total_points_earned": total_points_earned,
+            "total_points_possible": total_points_possible,
+            "passed": passed,
+            "results": results if quiz.show_results_immediately else []
+        })
+
 class IsQuizParticipant(IsContentReaderOrAdmin):
     def has_permission(self, request, view):
         # We need to temporarily pretend it's a GET request to bypass the SAFE_METHODS check in the parent

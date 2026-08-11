@@ -2,7 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     QuizViewSet, QuestionViewSet, AnswerChoiceViewSet, StartQuizAttemptView,
-    SubmitQuizAttemptView, QuizResultsAdminView, QuizMyResultsView
+    SubmitQuizAttemptView, QuizResultsAdminView, QuizMyResultsView,
+    PublicStartQuizAttemptView, PublicSubmitQuizAttemptView
 )
 
 router = DefaultRouter()
@@ -11,6 +12,8 @@ router.register(r'', QuizViewSet, basename='quiz')
 urlpatterns = [
     path('<int:pk>/start/', StartQuizAttemptView.as_view(), name='quiz_start'),
     path('<int:pk>/submit/', SubmitQuizAttemptView.as_view(), name='quiz_submit'),
+    path('<int:pk>/public_start/', PublicStartQuizAttemptView.as_view(), name='quiz_public_start'),
+    path('<int:pk>/public_submit/', PublicSubmitQuizAttemptView.as_view(), name='quiz_public_submit'),
     path('<int:pk>/results/', QuizResultsAdminView.as_view(), name='quiz_results_admin'),
     path('<int:pk>/my-results/', QuizMyResultsView.as_view(), name='quiz_my_results'),
     
