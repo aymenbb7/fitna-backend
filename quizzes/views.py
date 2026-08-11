@@ -314,7 +314,9 @@ class QuizResultsAdminView(views.APIView):
         student_results = []
         for a in attempts:
             student_results.append({
+                "user_id": a.student.id,
                 "name": a.student.full_name,
+                "email": a.student.email,
                 "score": a.score,
                 "passed": a.score >= quiz.passing_score if a.score is not None else False,
                 "attempt_number": a.attempt_number,

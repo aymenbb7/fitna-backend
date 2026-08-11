@@ -77,6 +77,26 @@ class MeView(views.APIView):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
 
+    def patch(self, request):
+        user = request.user
+        data = request.data
+
+        # Explicitly ignore email or role changes for security
+        allowed_fields = ['full_name', 'phone_number', 'age', 'profile_picture']
+        for field in allowed_fields:
+            if field in data:
+                setattr(user, field, data[field])
+
+        # Handle password change
+        if 'current_password' in data and 'new_password' in data:
+            if not user.check_password(data['current_password']):
+                return Response({'error': 'كلمة المرور الحالية غير صحيحة'}, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(data['new_password'])
+
+        user.save()
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
 from users.models import Notification
 
 class MyNotificationsView(views.APIView):
