@@ -54,7 +54,7 @@ class BroadcastNotificationView(views.APIView):
                 return Response({"error": "Invalid target type for module admin"}, status=status.HTTP_403_FORBIDDEN)
 
         if not recipients.exists():
-            return Response({"message": "No valid recipients found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "لم يتم العثور على مستلمين مطابقين."}, status=status.HTTP_400_BAD_REQUEST)
 
         notifications_to_create = []
         for user in recipients:
