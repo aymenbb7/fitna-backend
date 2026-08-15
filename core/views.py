@@ -447,6 +447,47 @@ class SuperAdminAddStudentModuleView(views.APIView):
             return Response({"message": f"Added {student.full_name} to {module.name}"})
         return Response({"message": "Student is already enrolled in this module"}, status=status.HTTP_400_BAD_REQUEST)
 
+class SuperAdminCreateModuleView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def post(self, request):
+        data = request.data
+        name = data.get('name')
+        slug = data.get('slug')
+        price = data.get('price', 0)
+        admin_id = data.get('admin_id')
+
+        if not name or not slug:
+            return Response({"error": "اسم الوحدة والرابط مطلوبان"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if Module.objects.filter(slug=slug).exists():
+            return Response({"error": "هذا الرابط (slug) مستخدم بالفعل"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            admin_user = None
+            if admin_id:
+                admin_user = User.objects.filter(id=admin_id, role='MODULE_ADMIN').first()
+            
+            module = Module.objects.create(
+                name=name,
+                slug=slug,
+                price=price,
+                admin=admin_user,
+                background_theme='TALENTS'
+            )
+            
+            # Create default settings
+            from modules.models import ModuleSettings
+            ModuleSettings.objects.get_or_create(module=module)
+
+            return Response({
+                "message": "تم إنشاء الوحدة بنجاح", 
+                "id": module.id,
+                "slug": module.slug
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SuperAdminModulesView(views.APIView):
     permission_classes = (IsAdminUser,)

@@ -7,6 +7,7 @@ from .views import (
     SuperAdminUserUpdateView, SuperAdminUserStatusView, SuperAdminUserResetPasswordView,
     SuperAdminCreateModuleAdminView, SuperAdminModuleUpdateView,
     SuperAdminModuleStatsView, SuperAdminUserDeleteView, ModuleAdminCreateStudentView,
+    SuperAdminCreateModuleView,
     RepairMediaView
 )
 from .revenue_views import RevenueStatsView, RevenueExportView
@@ -27,6 +28,7 @@ urlpatterns = [
     
     path('module-admins/create/', SuperAdminCreateModuleAdminView.as_view(), name='superadmin_create_module_admin'),
     
+    path('modules/create/', SuperAdminCreateModuleView.as_view(), name='superadmin_create_module'),
     path('modules/', SuperAdminModulesView.as_view(), name='superadmin_modules'),
     path('modules/<str:slug>/stats/', SuperAdminModuleStatsView.as_view(), name='superadmin_module_stats'),
     path('modules/<str:slug>/update/', SuperAdminModuleUpdateView.as_view(), name='superadmin_module_update'),
