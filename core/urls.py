@@ -30,10 +30,13 @@ urlpatterns = [
     
     path('modules/create/', SuperAdminCreateModuleView.as_view(), name='superadmin_create_module'),
     path('modules/', SuperAdminModulesView.as_view(), name='superadmin_modules'),
+    # IMPORTANT: dashboard-stats must come BEFORE the <str:slug> wildcard pattern.
+    # Django uses first-match routing; placing it after modules/<str:slug>/ causes
+    # "dashboard-stats" to be captured as a slug, hitting the Delete view → 405.
+    path('modules/dashboard-stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
     path('modules/<str:slug>/', SuperAdminModuleDeleteView.as_view(), name='superadmin_module_delete'),
     path('modules/<str:slug>/stats/', SuperAdminModuleStatsView.as_view(), name='superadmin_module_stats'),
     path('modules/<str:slug>/update/', SuperAdminModuleUpdateView.as_view(), name='superadmin_module_update'),
-    path('modules/dashboard-stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
     path('modules/<str:slug>/assign-admin/', SuperAdminAssignModuleAdminView.as_view(), name='superadmin_assign_admin'),
     
     path('students/create/', SuperAdminCreateStudentView.as_view(), name='superadmin_create_student'),
