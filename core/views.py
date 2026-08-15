@@ -489,6 +489,15 @@ class SuperAdminCreateModuleView(views.APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class SuperAdminModuleDeleteView(views.APIView):
+    permission_classes = (IsSuperAdmin,)
+
+    def delete(self, request, slug):
+        module = get_object_or_404(Module, slug=slug)
+        module.delete()
+        return Response({"message": "تم حذف الوحدة بنجاح"})
+
+
 class SuperAdminModulesView(views.APIView):
     permission_classes = (IsAdminUser,)
     
