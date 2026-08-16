@@ -112,7 +112,6 @@ class SiteSettings(models.Model):
     def load(cls):
         obj, created = cls.objects.get_or_create(pk=1)
         
-        # Ensure default rich JSONs if fields were empty or '[]'
         if not obj.contact_email or obj.contact_email == 'contact@fitna.dz':
             obj.contact_email = 'info@fitna.dz'
         if not obj.contact_phone or '795' in str(obj.contact_phone):
@@ -121,6 +120,26 @@ class SiteSettings(models.Model):
             obj.contact_address = 'الجزائر العاصمة'
         if not obj.social_whatsapp or '795' in str(obj.social_whatsapp) or '0773650836' in str(obj.social_whatsapp):
             obj.social_whatsapp = '+213773650836'
+
+        # Ensure hero and about sections have non-empty defaults matching the homepage
+        if not obj.landing_hero_title:
+            obj.landing_hero_title = 'منصة فطنة'
+        if not obj.landing_hero_subtitle:
+            obj.landing_hero_subtitle = 'نُعدّهم للحياة، لا للامتحانات!'
+        if not obj.landing_hero_button_text:
+            obj.landing_hero_button_text = 'ابدأ رحلتك الآن 🚀'
+        if not obj.landing_hero_button_url:
+            obj.landing_hero_button_url = '#programs'
+        if not obj.landing_about_title:
+            obj.landing_about_title = 'من نحن؟'
+        if not obj.landing_about_text or 'نرى اليوم واقعاً مؤلماً؛ أطفال صغار تائهون بين شاشات الهواتف. من هذا الألم، وُلدت فكرة منصة فطنة لتقديم بديل آمن وتربوي ممتع.' in obj.landing_about_text or obj.landing_about_text == '':
+            obj.landing_about_text = """أطفالنا يستحقون أفضل من هذا
+
+نرى اليوم واقعاً مؤلماً؛ أطفال صغار تائهون بين شاشات الهواتف، يضيع وقتهم ويهدر ذكاؤهم في محتويات تافهة لا تسمن ولا تغني من جوع. المشكلة تتفاقم يوماً بعد يوم، وبتنا نسمع عن حوادث وجرائم يقع ضحيتها أطفالنا بسبب هذا الواقع المفتوح والخطير.
+
+من هذا الألم، وُلدت فكرة «منصة فطنة». لم نرد أن نكتفي بالشكوى، بل صممنا حلاً عملياً يمثل بديلاً آمناً، ذكياً، وجذاباً.
+
+فطنة ليست مجرد منصة تعليمية، بل هي بيئة متكاملة تهدف إلى احتضان شغف الأطفال وإشغالهم بما ينفعهم، لبناء مهاراتهم وتأسيس مستقبل مشرق لهم، بعيداً عن مخاطر الفراغ الرقمي."""
 
         if not obj.landing_programs_json or obj.landing_programs_json == '[]':
             obj.landing_programs_json = DEFAULT_PROGRAMS_JSON
@@ -133,4 +152,5 @@ class SiteSettings(models.Model):
         if not obj.landing_faq_json or obj.landing_faq_json == '[]':
             obj.landing_faq_json = DEFAULT_FAQ_JSON
             
+        obj.save()
         return obj
