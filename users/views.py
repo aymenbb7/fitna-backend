@@ -28,45 +28,33 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        print("\n=== LOGIN ENDPOINT CALLED ===", file=sys.stderr)
-        
-        # Log request body (excluding password)
-        log_data = request.data.copy()
-        if 'password' in log_data:
-            log_data['password'] = '***HIDDEN***'
-        print(f"Request Data: {log_data}", file=sys.stderr)
-
-        username = request.data.get('username') or request.data.get('email')
+        serializer = self.get_serializer(data=request.data)
         
         try:
-            # For logging purposes, check user directly before serializer
-            from django.db.models import Q
-            user = User.objects.filter(Q(email=username) | Q(username=username)).first()
-            
-            serializer = self.get_serializer(data=request.data)
-            
-            if not serializer.is_valid(raise_exception=False):
-                print(f"Serializer validation errors: {serializer.errors}", file=sys.stderr)
+            if not serializer.is_valid():
+                # Check for database connection issues in serializer validation
+                errors = serializer.errors
+                if 'non_field_errors' in errors and any('database' in str(e).lower() or 'connection' in str(e).lower() for e in errors['non_field_errors']):
+                    return Response(
+                        {"detail": "تعذر الاتصال بقاعدة البيانات. يرجى مراجعة حالة الخادم."},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE
+                    )
                 return Response(
-                    {"detail": "Validation failed.", "errors": serializer.errors},
+                    {"detail": "بيانات الدخول غير صحيحة. يرجى المحاولة مرة أخرى.", "errors": errors},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-                
-            # If validation passes
-            print(f"username/email received: {username}", file=sys.stderr)
-            print(f"whether the user exists: {user is not None}", file=sys.stderr)
-            if user:
-                print(f"whether check_password() returns True: {user.check_password(request.data.get('password'))}", file=sys.stderr)
-            print("whether authentication returns a user: True", file=sys.stderr)
-            print("whether JWT token generation succeeds: True", file=sys.stderr)
-            
+
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print("Exception during login:", file=sys.stderr)
-            traceback.print_exc()
+            err_str = str(e).lower()
+            if 'connection' in err_str or 'operationalerror' in err_str or 'database' in err_str or 'tenant' in err_str:
+                return Response(
+                    {"detail": "تعذر الاتصال بقاعدة البيانات. يرجى مراجعة حالة الخادم."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
             return Response(
-                {"detail": str(e), "errors": {}},
+                {"detail": "حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.", "error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

@@ -106,7 +106,20 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[self.username_field].required = False
+        self.fields['email'] = serializers.CharField(required=False, write_only=True)
+
     def validate(self, attrs):
+        # Support passing 'email' instead of or in addition to 'username'
+        username = attrs.get(self.username_field) or attrs.get('email')
+        if not username:
+            raise serializers.ValidationError({
+                self.username_field: ["This field is required."]
+            })
+        attrs[self.username_field] = str(username).strip()
+
         data = super().validate(attrs)
         
         if self.user.role == 'STUDENT' and not self.user.is_approved:
