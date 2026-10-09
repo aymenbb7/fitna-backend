@@ -2,9 +2,14 @@ from django.db import models
 
 DEFAULT_PROGRAMS_JSON = '''[
   {"slug": "quran", "name": "قسم التعليم القرآني", "description": "حفظ وتجويد بطرق تفاعلية مبتكرة لترسيخ القرآن في النفوس.", "icon": "🕌"},
-  {"slug": "memory", "name": "الذاكرة الخارقة", "description": "تطوير مهارات الحفظ السريع والاستيعاب الفائق.", "icon": "🧠"},
-  {"slug": "soroban", "name": "الحساب الذهني (السوروبان)", "description": "تطوير سرعة الحساب والدقة في حل المسائل المالية والرياضية.", "icon": "🧮"},
-  {"slug": "problem-solving", "name": "حل المشكلات والمنطق", "description": "تنمية التفكير النقدي والتحليلي لدى الأطفال.", "icon": "🧩"}
+  {"slug": "memory", "name": "الذاكرة الخارقة", "description": "تطوير مهارات الحفظ السريع والاستيعاب الفائق ومضاعفة التركيز.", "icon": "🧠"},
+  {"slug": "soroban", "name": "الحساب الذهني (السوروبان)", "description": "تطوير سرعة الحساب والدقة في حل المسائل الرياضية والذهنية.", "icon": "🧮"},
+  {"slug": "problem-solving", "name": "حل المشكلات والمنطق", "description": "تنمية التفكير النقدي والتحليلي وحل المعضلات البرمجية والمنطقية.", "icon": "🧩"},
+  {"slug": "health", "name": "قسم العادات الصحية", "description": "بناء نمط حياة صحي ومتوازن للجسم والعقل للأبطال الصغار.", "icon": "🌿"},
+  {"slug": "history", "name": "قسم التاريخ والبطولات", "description": "استكشاف القصص الملهمة والحضارات العريقة بأسلوب تفاعلي مشوق.", "icon": "🏛️"},
+  {"slug": "languages", "name": "قسم اللغات والتواصل", "description": "إتقان مهارات التحدث والتعبير باللغات المختلفة بطلاقة وثقة.", "icon": "🗣️"},
+  {"slug": "talents", "name": "قسم اكتشاف المواهب", "description": "صقل المهارات الإبداعية وتفجير طاقات الطفل الابتكارية والفنية.", "icon": "⭐"},
+  {"slug": "psychology", "name": "قسم المتابعة النفسية", "description": "تعزيز الثقة بالنفس، إدارة المشاعر، وبناء شخصية قيادية إيجابية.", "icon": "🧘"}
 ]'''
 
 DEFAULT_FEATURES_JSON = '''[
@@ -16,7 +21,7 @@ DEFAULT_FEATURES_JSON = '''[
 
 DEFAULT_STATS_JSON = '''[
   {"num": 1250, "label": "طالب مبدع", "emoji": "👨‍🎓"},
-  {"num": 8, "label": "برامج متخصصة", "emoji": "📚"},
+  {"num": 9, "label": "برامج متخصصة", "emoji": "📚"},
   {"num": 98, "label": "نسبة الرضا", "emoji": "⭐"},
   {"num": 15, "label": "مشرف معتمد", "emoji": "🏆"}
 ]'''
@@ -141,8 +146,21 @@ class SiteSettings(models.Model):
 
 فطنة ليست مجرد منصة تعليمية، بل هي بيئة متكاملة تهدف إلى احتضان شغف الأطفال وإشغالهم بما ينفعهم، لبناء مهاراتهم وتأسيس مستقبل مشرق لهم، بعيداً عن مخاطر الفراغ الرقمي."""
 
+        import json
         if not obj.landing_programs_json or obj.landing_programs_json == '[]':
             obj.landing_programs_json = DEFAULT_PROGRAMS_JSON
+        else:
+            try:
+                current_programs = json.loads(obj.landing_programs_json)
+                if isinstance(current_programs, list) and len(current_programs) < 9:
+                    default_list = json.loads(DEFAULT_PROGRAMS_JSON)
+                    existing_slugs = {p.get('slug') for p in current_programs if isinstance(p, dict)}
+                    for p in default_list:
+                        if p.get('slug') not in existing_slugs:
+                            current_programs.append(p)
+                    obj.landing_programs_json = json.dumps(current_programs, ensure_ascii=False)
+            except Exception:
+                obj.landing_programs_json = DEFAULT_PROGRAMS_JSON
         if not obj.landing_features_json or obj.landing_features_json == '[]':
             obj.landing_features_json = DEFAULT_FEATURES_JSON
         if not obj.landing_stats_json or obj.landing_stats_json == '[]':
