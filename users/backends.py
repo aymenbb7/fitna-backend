@@ -27,11 +27,13 @@ class UnifiedAuthBackend(ModelBackend):
             if not user:
                 User().set_password(password)
                 return None
-        except Exception:
+        except Exception as e:
+            err_str = str(e).lower()
+            if 'connection' in err_str or 'operationalerror' in err_str or 'database' in err_str or 'tenant' in err_str:
+                raise
             return None
 
         if user.check_password(password) and self.user_can_authenticate(user):
             return user
             
         return None
-
