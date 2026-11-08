@@ -6,7 +6,12 @@ DEBUG = False
 # Allowed Hosts from environment variable (comma-separated)
 _allowed_hosts = config('ALLOWED_HOSTS', default='')
 ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(',') if h.strip()]
-ALLOWED_HOSTS.extend(['.railway.app'])
+ALLOWED_HOSTS.extend([
+    '.railway.app',
+    '.vercel.app',
+    'minasat-fitna.vercel.app',
+    'fitna-frontend.vercel.app',
+])
 
 # Trust X-Forwarded-Host from the reverse proxy
 USE_X_FORWARDED_HOST = True
