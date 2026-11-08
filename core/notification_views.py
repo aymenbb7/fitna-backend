@@ -82,21 +82,38 @@ class NotificationHistoryView(views.APIView):
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
             
         if request.user.role == 'SUPER_ADMIN':
-            sent_notifications = Notification.objects.all().order_by('-created_at')
+            sent_notifications = (
+                Notification.objects.select_related('recipient', 'sender')
+                .order_by('-created_at')[:200]
+            )
         else:
-            sent_notifications = Notification.objects.filter(sender=request.user).order_by('-created_at')
+            sent_notifications = (
+                Notification.objects.filter(sender=request.user)
+                .select_related('recipient', 'sender')
+                .order_by('-created_at')[:200]
+            )
         
         data = []
         for n in sent_notifications:
+            try:
+                recipient_email = n.recipient.email if n.recipient else "N/A"
+            except Exception:
+                recipient_email = "N/A"
+
+            try:
+                sender_name = n.sender.full_name if n.sender else "System"
+            except Exception:
+                sender_name = "System"
+
             data.append({
                 "id": n.id,
-                "title": n.title,
-                "message": n.message,
-                "recipient": n.recipient.email if n.recipient else "N/A",
-                "type": n.notification_type,
-                "is_read": n.is_read,
-                "created_at": n.created_at,
-                "sender_name": n.sender.full_name if n.sender else "System"
+                "title": n.title or "",
+                "message": n.message or "",
+                "recipient": recipient_email,
+                "type": n.notification_type or "GENERAL",
+                "is_read": bool(n.is_read),
+                "created_at": n.created_at.isoformat() if hasattr(n.created_at, 'isoformat') else str(n.created_at),
+                "sender_name": sender_name
             })
             
         return Response(data)
