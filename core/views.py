@@ -499,13 +499,16 @@ class SuperAdminModuleDeleteView(views.APIView):
 
 
 class SuperAdminModulesView(views.APIView):
-    permission_classes = (IsAdminUser,)
+    permission_classes = (IsAuthenticated,)
     
     def get(self, request):
+        if request.user.role not in ['SUPER_ADMIN', 'MODULE_ADMIN']:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
         if request.user.role == 'SUPER_ADMIN':
-            modules = Module.objects.all().annotate(student_count=Count('enrollments'))
+            modules = Module.objects.all().annotate(student_count=Count('enrollments')).order_by('-id')
         else:
-            modules = Module.objects.filter(admin=request.user).annotate(student_count=Count('enrollments'))
+            modules = Module.objects.filter(admin=request.user).annotate(student_count=Count('enrollments')).order_by('-id')
             
         data = []
         for m in modules:
@@ -832,13 +835,24 @@ class SuperAdminCreateModuleAdminView(views.APIView):
 
 
 class SuperAdminModuleStatsView(views.APIView):
-    permission_classes = (IsAdminUser,)
+    permission_classes = (IsAuthenticated,)
 
     def get(self, request, slug):
-        module = get_object_or_404(Module, slug=slug)
+        if request.user.role not in ['SUPER_ADMIN', 'MODULE_ADMIN']:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        from urllib.parse import unquote
+        clean_slug = unquote(slug)
+        try:
+            module = Module.objects.get(slug=clean_slug)
+        except Module.DoesNotExist:
+            try:
+                module = Module.objects.get(slug=slug)
+            except Module.DoesNotExist:
+                return Response({'error': 'الوحدة الدراسية غير موجودة.'}, status=status.HTTP_404_NOT_FOUND)
         
         if request.user.role == 'MODULE_ADMIN' and module.admin != request.user:
-            return Response({'error': 'Unauthorized'}, status=403)
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
             
         enrollments = Enrollment.objects.filter(module=module)
         total_students = enrollments.count()
@@ -853,7 +867,7 @@ class SuperAdminModuleStatsView(views.APIView):
             
         average_revenue = total_revenue / total_students if total_students > 0 else 0
         
-        latest_payments = payments.order_by('-created_at')[:5]
+        latest_payments = payments.select_related('student').order_by('-created_at')[:5]
         latest_payments_data = []
         for p in latest_payments:
             latest_payments_data.append({
