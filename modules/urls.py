@@ -8,22 +8,22 @@ from .views import (
 
 urlpatterns = [
     path('', ModuleListView.as_view(), name='module_list'),
-    path('<slug:slug>/', ModuleDetailView.as_view(), name='module_detail'),
-    path('<slug:slug>/dashboard/', ModuleDashboardView.as_view(), name='module_dashboard'),
-    path('<slug:slug>/analytics/', ModuleAnalyticsView.as_view(), name='module_analytics'),
-    path('<slug:slug>/trial/', ModuleTrialView.as_view(), name='module_trial'),
+    path('<str:slug>/', ModuleDetailView.as_view(), name='module_detail'),
+    path('<str:slug>/dashboard/', ModuleDashboardView.as_view(), name='module_dashboard'),
+    path('<str:slug>/analytics/', ModuleAnalyticsView.as_view(), name='module_analytics'),
+    path('<str:slug>/trial/', ModuleTrialView.as_view(), name='module_trial'),
     
     # Settings
-    path('<slug:slug>/settings/', ModuleSettingsUpdateView.as_view(), name='module_settings'),
+    path('<str:slug>/settings/', ModuleSettingsUpdateView.as_view(), name='module_settings'),
     
     # Students
-    path('<slug:slug>/students/', StudentListView.as_view(), name='student_list'),
-    path('<slug:slug>/students/pending/', PendingStudentListView.as_view(), name='pending_student_list'),
-    path('<slug:slug>/students/<int:pk>/approve/', ApproveStudentView.as_view(), name='approve_student'),
-    path('<slug:slug>/students/<int:pk>/reject/', RejectStudentView.as_view(), name='reject_student'),
-    path('<slug:slug>/students/<int:pk>/', RemoveStudentView.as_view(), name='remove_student'),
+    path('<str:slug>/students/', StudentListView.as_view(), name='student_list'),
+    path('<str:slug>/students/pending/', PendingStudentListView.as_view(), name='pending_student_list'),
+    path('<str:slug>/students/<int:pk>/approve/', ApproveStudentView.as_view(), name='approve_student'),
+    path('<str:slug>/students/<int:pk>/reject/', RejectStudentView.as_view(), name='reject_student'),
+    path('<str:slug>/students/<int:pk>/', RemoveStudentView.as_view(), name='remove_student'),
     
     # Content & Quizzes
-    path('<slug:slug>/', include('content.urls')),
-    path('<slug:slug>/quizzes/', include('quizzes.urls')),
+    path('<str:slug>/', include('content.urls')),
+    path('<str:slug>/quizzes/', include('quizzes.urls')),
 ]

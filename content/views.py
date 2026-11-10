@@ -1,3 +1,4 @@
+import urllib.parse
 from rest_framework import viewsets, generics, views, permissions, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -13,6 +14,10 @@ from users.models import Notification
 from core.permissions import IsSuperAdmin, IsModuleOwner
 
 
+def clean_slug(slug):
+    return urllib.parse.unquote(slug) if slug else slug
+
+
 class IsModuleAdminOrSuperAdmin(permissions.BasePermission):
     """Allow SUPER_ADMIN always; allow MODULE_ADMIN only for their own module."""
     def has_permission(self, request, view):
@@ -22,7 +27,7 @@ class IsModuleAdminOrSuperAdmin(permissions.BasePermission):
         if user.role == 'SUPER_ADMIN':
             return True
         if user.role == 'MODULE_ADMIN':
-            slug = view.kwargs.get('slug')
+            slug = clean_slug(view.kwargs.get('slug'))
             if not slug:
                 return False
             try:
@@ -43,7 +48,7 @@ class IsContentReaderOrAdmin(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        slug = view.kwargs.get('slug')
+        slug = clean_slug(view.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
 
         if user.role == 'SUPER_ADMIN':
@@ -89,7 +94,7 @@ class SectionListCreateView(generics.ListCreateAPIView):
     permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
         return Section.objects.filter(module=module).prefetch_related(
             'lessons',
@@ -101,7 +106,7 @@ class SectionListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
         serializer.save(module=module)
 
@@ -111,7 +116,7 @@ class SectionDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
         return Section.objects.filter(module=module)
 
@@ -128,12 +133,12 @@ class LessonListCreateView(generics.ListCreateAPIView):
     permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         return Lesson.objects.filter(section__module__slug=slug)
 
     def perform_create(self, serializer):
         # Validate section belongs to this module
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         section = serializer.validated_data.get('section')
         if section.module.slug != slug:
             from rest_framework.exceptions import PermissionDenied
@@ -146,7 +151,7 @@ class LessonDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         return Lesson.objects.filter(section__module__slug=slug)
 
     def get_object(self):
@@ -162,7 +167,7 @@ class BaseContentViewSet(viewsets.ModelViewSet):
     content_type = None
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
         qs = self.queryset.filter(lesson__section__module=module)
         if self.request.user.role == 'STUDENT':
@@ -170,7 +175,7 @@ class BaseContentViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
 
         # Validate lesson belongs to this module (if provided)

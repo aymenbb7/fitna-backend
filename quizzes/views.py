@@ -1,3 +1,4 @@
+import urllib.parse
 from rest_framework import viewsets, views, status, permissions
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -13,12 +14,15 @@ from django.db.models import Count, Avg, Max, Min
 
 User = get_user_model()
 
+def clean_slug(slug):
+    return urllib.parse.unquote(slug) if slug else slug
+
 class QuizViewSet(viewsets.ModelViewSet):
     serializer_class = QuizSerializer
     permission_classes = (IsContentReaderOrAdmin,)
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
         qs = Quiz.objects.filter(module=module)
         # Filter by lesson if provided
@@ -30,7 +34,7 @@ class QuizViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
         lesson_id = self.request.data.get('lesson')
         lesson = None
@@ -90,6 +94,7 @@ class PublicStartQuizAttemptView(views.APIView):
     permission_classes = (permissions.AllowAny,)
 
     def get(self, request, slug, pk):
+        slug = clean_slug(slug)
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug, is_active=True)
         # Ensure it belongs to a trial lesson
         if not quiz.lesson or not quiz.lesson.is_preview:
@@ -109,6 +114,7 @@ class PublicSubmitQuizAttemptView(views.APIView):
     permission_classes = (permissions.AllowAny,)
 
     def post(self, request, slug, pk):
+        slug = clean_slug(slug)
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug, is_active=True)
         if not quiz.lesson or not quiz.lesson.is_preview:
             return Response({"error": "Quiz is not available for public trial."}, status=status.HTTP_403_FORBIDDEN)
@@ -173,7 +179,7 @@ class IsQuizParticipant(IsContentReaderOrAdmin):
         if user.role in ['SUPER_ADMIN', 'MODULE_ADMIN']: return True
         if user.role == 'STUDENT':
             if not user.is_approved: return False
-            slug = view.kwargs.get('slug')
+            slug = clean_slug(view.kwargs.get('slug'))
             module = get_object_or_404(Module, slug=slug)
             if not user.enrollments.filter(module=module).exists(): return False
             if not module.settings.show_quizzes: return False
@@ -184,6 +190,7 @@ class StartQuizAttemptView(views.APIView):
     permission_classes = (IsQuizParticipant,)
 
     def post(self, request, slug, pk):
+        slug = clean_slug(slug)
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug, is_active=True)
         user = request.user
         
@@ -217,6 +224,7 @@ class SubmitQuizAttemptView(views.APIView):
     permission_classes = (IsQuizParticipant,)
 
     def post(self, request, slug, pk):
+        slug = clean_slug(slug)
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug)
         user = request.user
         attempt_id = request.data.get('attempt_id')
@@ -308,6 +316,7 @@ class QuizResultsAdminView(views.APIView):
     permission_classes = (IsModuleOwner | IsSuperAdmin,)
 
     def get(self, request, slug, pk):
+        slug = clean_slug(slug)
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug)
         attempts = QuizAttempt.objects.filter(quiz=quiz, is_completed=True).select_related('student')
         
@@ -374,6 +383,7 @@ class QuizMyResultsView(views.APIView):
     permission_classes = (IsContentReaderOrAdmin,)
 
     def get(self, request, slug, pk):
+        slug = clean_slug(slug)
         quiz = get_object_or_404(Quiz, pk=pk, module__slug=slug)
         attempts = QuizAttempt.objects.filter(quiz=quiz, student=request.user, is_completed=True)
         serializer = QuizAttemptSerializer(attempts, many=True)

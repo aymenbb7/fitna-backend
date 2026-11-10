@@ -359,7 +359,8 @@ class SuperAdminModuleUpdateView(views.APIView):
         return False
 
     def post(self, request, slug):
-        module = get_object_or_404(Module, slug=slug)
+        from urllib.parse import unquote
+        module = get_object_or_404(Module, slug=unquote(slug))
         if not self.has_module_permission(request, module):
             return Response({"detail": "You do not have permission to perform this action."}, status=403)
 
@@ -386,6 +387,11 @@ class SuperAdminModuleUpdateView(views.APIView):
         if is_super:
             if 'price' in data:
                 module.price = data['price']
+            if 'display_order' in data:
+                try:
+                    module.display_order = int(data['display_order'])
+                except (ValueError, TypeError):
+                    pass
             if 'is_active' in data:
                 val = data['is_active']
                 if str(val).lower() == 'true':
@@ -410,7 +416,8 @@ class SuperAdminAssignModuleAdminView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def post(self, request, slug):
-        module = get_object_or_404(Module, slug=slug)
+        from urllib.parse import unquote
+        module = get_object_or_404(Module, slug=unquote(slug))
         user_id = request.data.get('user_id')
         user = get_object_or_404(User, id=user_id, role='MODULE_ADMIN')
         module.admin = user
@@ -493,7 +500,8 @@ class SuperAdminModuleDeleteView(views.APIView):
     permission_classes = (IsSuperAdmin,)
 
     def delete(self, request, slug):
-        module = get_object_or_404(Module, slug=slug)
+        from urllib.parse import unquote
+        module = get_object_or_404(Module, slug=unquote(slug))
         module.delete()
         return Response({"message": "تم حذف الوحدة بنجاح"})
 

@@ -1,3 +1,4 @@
+import urllib.parse
 from rest_framework import generics, status, views
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -13,6 +14,9 @@ from content.models import Lesson
 from content.serializers import TrialLessonSerializer
 
 User = get_user_model()
+
+def clean_slug(slug):
+    return urllib.parse.unquote(slug) if slug else slug
 
 class ModuleListView(generics.ListAPIView):
     serializer_class = ModuleSerializer
@@ -44,10 +48,17 @@ class ModuleDetailView(generics.RetrieveAPIView):
         # Public users and students: all active modules
         return Module.objects.filter(is_active=True)
 
+    def get_object(self):
+        raw_slug = self.kwargs.get(self.lookup_field, '')
+        slug = clean_slug(raw_slug)
+        queryset = self.get_queryset()
+        return get_object_or_404(queryset, slug=slug)
+
 class ModuleDashboardView(views.APIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def get(self, request, slug):
+        slug = clean_slug(slug)
         module = get_object_or_404(Module, slug=slug)
         total_students = Enrollment.objects.filter(module=module, student__is_approved=True).count()
         pending_students = Enrollment.objects.filter(module=module, student__is_approved=False).count()
@@ -68,12 +79,12 @@ class StudentListView(generics.ListAPIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         return User.objects.filter(enrollments__module__slug=slug, is_approved=True)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['module_slug'] = self.kwargs.get('slug')
+        context['module_slug'] = clean_slug(self.kwargs.get('slug'))
         return context
 
 class PendingStudentListView(generics.ListAPIView):
@@ -81,18 +92,19 @@ class PendingStudentListView(generics.ListAPIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         return User.objects.filter(enrollments__module__slug=slug, is_approved=False)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['module_slug'] = self.kwargs.get('slug')
+        context['module_slug'] = clean_slug(self.kwargs.get('slug'))
         return context
 
 class ApproveStudentView(views.APIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def post(self, request, slug, pk):
+        slug = clean_slug(slug)
         student = get_object_or_404(User, pk=pk, role='STUDENT')
         enrollment = get_object_or_404(Enrollment, student=student, module__slug=slug)
         
@@ -114,6 +126,7 @@ class RejectStudentView(views.APIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def post(self, request, slug, pk):
+        slug = clean_slug(slug)
         student = get_object_or_404(User, pk=pk, role='STUDENT')
         enrollment = get_object_or_404(Enrollment, student=student, module__slug=slug)
         module = enrollment.module
@@ -139,6 +152,7 @@ class RemoveStudentView(views.APIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def delete(self, request, slug, pk):
+        slug = clean_slug(slug)
         student = get_object_or_404(User, pk=pk, role='STUDENT')
         enrollment = get_object_or_404(Enrollment, student=student, module__slug=slug)
         enrollment.delete()
@@ -150,7 +164,7 @@ class ModuleSettingsUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def get_object(self):
-        slug = self.kwargs.get('slug')
+        slug = clean_slug(self.kwargs.get('slug'))
         module = get_object_or_404(Module, slug=slug)
         return module.settings
 
@@ -158,6 +172,7 @@ class ModuleAnalyticsView(views.APIView):
     permission_classes = (IsAuthenticated, IsModuleOwner | IsSuperAdmin)
 
     def get(self, request, slug):
+        slug = clean_slug(slug)
         module = get_object_or_404(Module, slug=slug)
         
         total_students = Enrollment.objects.filter(module=module, student__is_approved=True).count()
@@ -200,8 +215,8 @@ class ModuleTrialView(views.APIView):
     permission_classes = (AllowAny,)
 
     def get(self, request, slug):
+        slug = clean_slug(slug)
         module = get_object_or_404(Module, slug=slug)
         lessons = Lesson.objects.filter(section__module=module, is_preview=True, is_active=True).order_by('section__display_order', 'display_order')
         serializer = TrialLessonSerializer(lessons, many=True)
         return Response(serializer.data)
-

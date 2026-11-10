@@ -1,3 +1,4 @@
+import urllib.parse
 from rest_framework import permissions
 
 class IsSuperAdmin(permissions.BasePermission):
@@ -22,6 +23,7 @@ class IsEnrolledStudent(permissions.BasePermission):
         module_slug = view.kwargs.get('slug')
         if not module_slug:
             return False
+        module_slug = urllib.parse.unquote(module_slug)
             
         return request.user.enrollments.filter(module__slug=module_slug).exists()
 
@@ -33,5 +35,6 @@ class IsModuleOwner(permissions.BasePermission):
         module_slug = view.kwargs.get('slug')
         if not module_slug:
             return False
+        module_slug = urllib.parse.unquote(module_slug)
             
         return getattr(request.user, 'managed_module', None) is not None and request.user.managed_module.slug == module_slug
